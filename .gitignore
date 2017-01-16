@@ -22,3 +22,10 @@ _testmain.go
 *.exe
 *.test
 *.prof
+
+# external packages folder
+vendor/
+
+bin/
+config-prod.yml
+config-dev.yml

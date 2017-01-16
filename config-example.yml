@@ -1,0 +1,12 @@
+debugLevel: debug
+fetchers:
+  - type: local
+    path: /tmp/
+  - type: s3
+    region: us-east-1
+  - type: gs
+    projectId: my-project-1234
+    # - "background" for use when running inside a compute instance
+    # - "file" for use when supply a service account JSON file (combined with 'serviceAccountJSONFile' key)
+    securitySource: file
+    serviceAccountJSONFile: /somewhere/mystuff-12345.json
