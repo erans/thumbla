@@ -1,4 +1,4 @@
-# Thumbla - Micro service for service and manipulating images
+# Thumbla - Micro service for fetching and manipulating images
 
 Written by Eran Sandler ([@erans](https://twitter.com/erans)) http://eran.sandler.co.il &copy; 2017
 
