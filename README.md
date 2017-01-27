@@ -1,14 +1,14 @@
-# Thumbla - Image serving and manipulation
+# Thumbla - Micro service for service and manipulating images
 
-Written by Eran Sandler ([@erans](https://twitter.com/erans)) &copy; 2017
+Written by Eran Sandler ([@erans](https://twitter.com/erans)) http://eran.sandler.co.il &copy; 2017
 
-Thumbla is a quick server to fetch and manipulate photos. It can securely fetch from remote locations that do not have to be publically available.
+Thumbla is a micro service that fetches and manipulates images. It can securely fetch from remote locations that are not publicly available.
 
 Supported Fetchers:
-- Local (fetch from a local folder on the server)
-- HTTP/S (fetch from a remote HTTP/S server)
-- AWS S3 Bucket - fetch from an S3 bucket that is not necessarily publically accessible to anonymous users
-- Google Storage Bucket - fetch from a Google Storage bucket that is not necessarily publically accessible to anonymous users
+- Local - fetch from a local directory on the server (the directory can also be mounted from a remote location and shared across servers)
+- HTTP/S - fetch from a remote HTTP/S server
+- AWS S3 Bucket - fetch from an S3 bucket. Supports accessing a private S3 bucket.
+- Google Storage Bucket - fetch from a Google Storage bucket. Support accessing a private Google Storage bucket.
 
 Fetched images can then be manipulated via manipulators such as:
 - Resize (proportionally or not)
@@ -21,8 +21,9 @@ Fetched images can then be manipulated via manipulators such as:
 - Shear Vertically
 
 What's still missing:
-- Additional security features for the various fetchers
+- Additional security features for the various fetchers (support auth for HTTP/S requests)
+- Allow configuring sub paths that will go to different image repositories (i.e. /aaa/ goes to an S3 bucket, /bbb/ goes to a Google bucket and /ccc/ goes to a remote HTTP server)
 - Face cropping manipulator - crop based on existing detected faces (will support Google Vision and Microsoft Face API)
 - Paste - paste another image on top an existing one
-- various images enhancmenents protocols
+- various images enhancements (brightness, contrast, levels adjustments etc)
 - Recipes - store complex image manipulation recipes and only pass input parameters
