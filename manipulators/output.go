@@ -23,6 +23,13 @@ func (manipulator *OutputManipulator) Execute(c echo.Context, params map[string]
 	if val, ok := params["f"]; ok {
 		if contentType, ok := formatContentTypeMapping[val]; ok {
 			c.Response().Header().Set("Content-Type", contentType)
+
+			if contentType == "image/jpeg" || contentType == "image/jpg" {
+				if val, ok := params["q"]; ok {
+					c.Response().Header().Set("X-Quality", val)
+				}
+			}
+
 		} else {
 			return nil, fmt.Errorf("Invalid or unsupported content type format '%s'", contentType)
 		}

@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"golang.org/x/image/webp"
@@ -118,7 +119,15 @@ func parseManipulators(c echo.Context) []*manipulatorAction {
 func writeImageToResponse(c echo.Context, contentType string, img image.Image) error {
 
 	if contentType == "image/jpg" || contentType == "image/jpeg" {
-		jpeg.Encode(c.Response().Writer, img, &jpeg.Options{Quality: 90})
+		var quality = 90
+		var tempQuality = c.Response().Header().Get("X-Quality")
+		if tempQuality != "" {
+			quality, _ = strconv.Atoi(tempQuality)
+		}
+
+		c.Response().Header().Del("X-Quality")
+
+		jpeg.Encode(c.Response().Writer, img, &jpeg.Options{Quality: quality})
 	} else if contentType == "image/png" {
 		png.Encode(c.Response().Writer, img)
 	} else {
