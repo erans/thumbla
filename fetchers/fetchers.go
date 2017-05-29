@@ -9,26 +9,75 @@ import (
 
 // Fetcher interface handles fetching content from different sources
 type Fetcher interface {
-	Fetch(c echo.Context, url string) (responseBody io.Reader, contentType string, err error)
+	GetName() string
+	GetFetcherType() string
+	Fetch(ctx echo.Context, url string) (responseBody io.Reader, contentType string, err error)
 }
 
-var fetcherRegistry map[string]Fetcher
+var fetcherRegistry []Fetcher
+var fetcherByType = map[string]Fetcher{}
+var fetcherByName = map[string]Fetcher{}
+var fetcherByPath = map[string]Fetcher{}
 
 // InitFetchers initializes fetchers from config
 func InitFetchers(cfg *config.Config) {
-	fetcherRegistry = map[string]Fetcher{
-		"http":  NewHTTPFetcher(cfg),
-		"https": NewHTTPFetcher(cfg),
-		"local": NewLocalFetcher(cfg),
-		"s3":    NewS3Fetcher(cfg),
-		"gs":    NewGoogleStroageFetcher(cfg),
+	fetcherRegistry = make([]Fetcher, len(cfg.Fetchers))
+	for i, fetcherCfgData := range cfg.Fetchers {
+		if fetcherType, ok := fetcherCfgData["type"]; ok {
+			var fetcher Fetcher
+			switch fetcherType {
+			case "local":
+				fetcher = NewLocalFetcher(fetcherCfgData)
+			case "http":
+				fetcher = NewHTTPFetcher(fetcherCfgData)
+			case "s3":
+				fetcher = NewS3Fetcher(fetcherCfgData)
+			case "gs":
+				fetcher = NewGoogleStroageFetcher(fetcherCfgData)
+			}
+
+			fetcherRegistry[i] = fetcher
+		}
+	}
+
+	for _, fetcher := range fetcherRegistry {
+		fetcherByName[fetcher.GetName()] = fetcher
+		fetcherByType[fetcher.GetFetcherType()] = fetcher
+	}
+
+	for _, p := range cfg.Paths {
+		if fetcher, ok := fetcherByName[p.FetcherName]; ok {
+			fetcherByPath[p.Path] = fetcher
+		}
 	}
 }
 
-// GetFetcherByProtcool returns the fetcher specified by protocol
-func GetFetcherByProtcool(protocol string) Fetcher {
-	if fetcherRegistry != nil {
-		if fetcher, ok := fetcherRegistry[protocol]; ok {
+// GetFetcherByName returns a fetcher by its configured name
+func GetFetcherByName(name string) Fetcher {
+	if fetcherByName != nil {
+		if fetcher, ok := fetcherByName[name]; ok {
+			return fetcher
+		}
+	}
+
+	return nil
+}
+
+// GetFetcherByType returns the fetcher specified by its type
+func GetFetcherByType(fetcherType string) Fetcher {
+	if fetcherByType != nil {
+		if fetcher, ok := fetcherByType[fetcherType]; ok {
+			return fetcher
+		}
+	}
+
+	return nil
+}
+
+// GetFetcherByPath returns the fetcher specified by its path
+func GetFetcherByPath(path string) Fetcher {
+	if fetcherByPath != nil {
+		if fetcher, ok := fetcherByPath[path]; ok {
 			return fetcher
 		}
 	}

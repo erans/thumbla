@@ -1,8 +1,8 @@
-hash: 0bfdae8882938a79b2d28ebbe4fd8b5a360aa4f68054a4d0fd8edc492fce5f2d
-updated: 2017-01-13T14:49:22.708118025+02:00
+hash: a5ca2a1640f85f17876c8a7f7d20ab66e60bdc5d4df5cbde6da2379741181115
+updated: 2017-05-29T11:52:04.11020389+03:00
 imports:
 - name: cloud.google.com/go
-  version: c116c7972ec94f148459a304d07a67ecbc770d4b
+  version: 2e6a95edb1071d750f6d7db777bf66cd2997af6c
   subpackages:
   - compute/metadata
   - internal
@@ -15,14 +15,14 @@ imports:
 - name: github.com/alecthomas/units
   version: 2efee857e7cfd4f3d0138cc3cbb1b4966962b93a
 - name: github.com/anthonynsimon/bild
-  version: a3f4c3c038ad62316bef59cc12d437b79dc79696
+  version: 7f2c395b16042d36ab187448a70b9de9ccb5854d
   subpackages:
   - clone
   - math/f64
   - parallel
   - transform
 - name: github.com/aws/aws-sdk-go
-  version: 63ce630574a5ec05ecd8e8de5cea16332a5a684d
+  version: e0cdae7a65ba3a5e66a0af747a7b3967ddac099c
   subpackages:
   - aws
   - aws/awserr
@@ -46,58 +46,58 @@ imports:
   - private/protocol/rest
   - private/protocol/restxml
   - private/protocol/xml/xmlutil
-  - private/waiter
   - service/s3
   - service/s3/s3iface
   - service/s3/s3manager
   - service/sts
 - name: github.com/dgrijalva/jwt-go
-  version: a601269ab70c205d26370c16f7c81e9017c14e04
+  version: d2709f9f1f31ebcda9651b03077758c1f3a0018c
+- name: github.com/dimfeld/httptreemux
+  version: 86f7c217d9043ebc6adfd8e2ed04a0bb1e1db651
 - name: github.com/go-ini/ini
-  version: 6f66b0e091edb3c7b380f7c4f0f884274d550b67
+  version: afbc45e87f3ba324c532d12c71918ef52e0fb194
 - name: github.com/golang/protobuf
-  version: 8ee79997227bf9b34611aee7946ae64735e6fd93
+  version: 1f49d83d9aa00e6ce4fc8258c71cc7786aec968a
   subpackages:
   - proto
+  - ptypes/any
 - name: github.com/googleapis/gax-go
-  version: da06d194a00e19ce00d9011a13931c3f6f6887c7
+  version: 9af46dd5a1713e8b5cd71106287eba3cefdde50b
 - name: github.com/jmespath/go-jmespath
   version: bd40a432e4c76585ef6b72d3fd96fb9b6dc7b68d
 - name: github.com/labstack/echo
-  version: 8526358e8aa454596a2632380ae7ff42586dc602
+  version: 1049c9613cd371b7ea8f219404c9a821734781ed
   subpackages:
   - middleware
 - name: github.com/labstack/gommon
-  version: f72d3c883f8ea180da8f085dd320804c41332ad1
+  version: 2d272df536d051e737aea353b86c979d6e88bce0
   subpackages:
   - bytes
   - color
   - log
   - random
 - name: github.com/mattn/go-colorable
-  version: d228849504861217f796da67fae4f6e347643f15
+  version: ded68f7a9561c023e790de24279db7ebf473ea80
 - name: github.com/mattn/go-isatty
-  version: 30a891c33c7cde7b02a981314b4228ec99380cca
-- name: github.com/tylerb/graceful
-  version: d37e108c89765a8e307f15b8fb2ecd10575da6bb
+  version: fc9e8d8ef48496124e79ae0df75490096eccf6fe
 - name: github.com/valyala/bytebufferpool
   version: e746df99fe4a3986f4d4f79e13c1e0117ce9c2f7
 - name: github.com/valyala/fasttemplate
-  version: d090d65668a286d9a180d43a19dfdc5dcad8fe88
+  version: dcecefd839c4193db0d35b88ec65b4c12d360ab0
 - name: golang.org/x/crypto
-  version: 7c6cc321c680f03b9ef0764448e780704f486b51
+  version: 81372b2fc2f10bef2a7f338da115c315a56b2726
   subpackages:
   - acme
   - acme/autocert
 - name: golang.org/x/image
-  version: 1ff62c92167a10494f3e0b1e77cb67860a6ac43a
+  version: 426cfd8eeb6e08ab1932954e09e3c2cb2bc6e36d
   subpackages:
   - riff
   - vp8
   - vp8l
   - webp
 - name: golang.org/x/net
-  version: 2497afe528999a59ebf56c8b8fb6191e4dcde594
+  version: 48359f4f600b3a2d5cf657458e3f940021631a56
   subpackages:
   - context
   - context/ctxhttp
@@ -108,25 +108,25 @@ imports:
   - lex/httplex
   - trace
 - name: golang.org/x/oauth2
-  version: 314dd2c0bf3ebd592ec0d20847d27e79d0dbe8dd
+  version: f047394b6d14284165300fd82dad67edb3a4d7f6
   subpackages:
   - google
   - internal
   - jws
   - jwt
 - name: golang.org/x/sys
-  version: d75a52659825e75fff6158388dddc6a5b04f9ba5
+  version: 30de6d19a3bd89a5f38ae4028e23aaa5582648af
   subpackages:
   - unix
 - name: golang.org/x/text
-  version: f72d8390a633d5dfb0cc84043294db9f6c935756
+  version: 19e51611da83d6be54ddafce4a4af510cb3e9ea4
   subpackages:
   - secure/bidirule
   - transform
   - unicode/bidi
   - unicode/norm
 - name: google.golang.org/api
-  version: d61af0b67e5c8213e8c260ac29a762487bad020d
+  version: 0209b31435ad4749b84ce122e669fb098f556642
   subpackages:
   - gensupport
   - googleapi
@@ -139,7 +139,7 @@ imports:
   - storage/v1
   - transport
 - name: google.golang.org/appengine
-  version: 8758a385849434ba5eac8aeedcf5192c5a0f5f10
+  version: 78199dcb0669fc381c22e919e1e97eba879e8f60
   subpackages:
   - internal
   - internal/app_identity
@@ -153,25 +153,32 @@ imports:
   - socket
   - urlfetch
 - name: google.golang.org/cloud
-  version: c116c7972ec94f148459a304d07a67ecbc770d4b
+  version: 2e6a95edb1071d750f6d7db777bf66cd2997af6c
   subpackages:
   - compute/...
+- name: google.golang.org/genproto
+  version: d80a6e20e776b0b17a324d0ba1ab50a39c8e8944
+  subpackages:
+  - googleapis/rpc/status
 - name: google.golang.org/grpc
-  version: 50955793b0183f9de69bd78e2ec251cf20aab121
+  version: d2e1b51f33ff8c5e4a15560ff049d200e83726c5
   subpackages:
   - codes
   - credentials
   - credentials/oauth
+  - grpclb/grpc_lb_v1
   - grpclog
   - internal
+  - keepalive
   - metadata
   - naming
   - peer
   - stats
+  - status
   - tap
   - transport
 - name: gopkg.in/alecthomas/kingpin.v2
   version: e9044be3ab2a8e11d4e1f418d12f0790d57e8d70
 - name: gopkg.in/yaml.v2
-  version: a5b47d31c556af34a302ce5d659e6fea44d90de0
+  version: 31c299268d302dd0aa9a0dcf765a3d58971ac83f
 testImports: []

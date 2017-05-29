@@ -8,7 +8,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/erans/thumbla/config"
 	"github.com/labstack/echo"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -19,7 +18,11 @@ import (
 
 // S3Fetcher fetches content from an s3 bucket
 type S3Fetcher struct {
-	Region string
+	Name            string
+	FetcherType     string
+	Region          string
+	AccessKeyID     string
+	SecretAccessKey string
 }
 
 var awsRegionRegExp, _ = regexp.Compile("s3-(.*)\\.amazonaws\\.com")
@@ -89,7 +92,9 @@ func (fetcher *S3Fetcher) Fetch(c echo.Context, fileURL string) (io.Reader, stri
 		return nil, "", fmt.Errorf("Failed to parse file URL. url=%s", fileURL)
 	}
 
-	svc := s3.New(sess, &aws.Config{Region: aws.String(region)})
+	awsConfig := &aws.Config{Region: aws.String(region)}
+
+	svc := s3.New(sess, awsConfig)
 
 	params := &s3.GetObjectInput{
 		Bucket: aws.String(bucket),
@@ -115,8 +120,28 @@ func (fetcher *S3Fetcher) Fetch(c echo.Context, fileURL string) (io.Reader, stri
 	return nil, "", err
 }
 
+// GetName returns the name assigned to this fetcher that can be used in the 'paths' section
+func (fetcher *S3Fetcher) GetName() string {
+	return fetcher.Name
+}
+
+// GetFetcherType returns the type of this fetcher to be used in the 'type' properties when defining fetchers
+func (fetcher *S3Fetcher) GetFetcherType() string {
+	return fetcher.FetcherType
+}
+
 // NewS3Fetcher creates a new fetcher that support s3 bucket
-func NewS3Fetcher(cfg *config.Config) *S3Fetcher {
-	var region = cfg.GetFetcherConfigKeyValue("s3", "region")
-	return &S3Fetcher{Region: region}
+func NewS3Fetcher(cfg map[string]interface{}) *S3Fetcher {
+	var name, _ = cfg["name"]
+	var region, _ = cfg["region"]
+	var accessKeyID, _ = cfg["accessKeyId"]
+	var secretAccessKey, _ = cfg["secretAccessKey"]
+
+	return &S3Fetcher{
+		Name:            name.(string),
+		FetcherType:     "s3",
+		Region:          region.(string),
+		AccessKeyID:     accessKeyID.(string),
+		SecretAccessKey: secretAccessKey.(string),
+	}
 }

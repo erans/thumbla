@@ -8,12 +8,16 @@ import (
 
 // Config provides a configuration struct for the server
 type Config struct {
-	DebugLevel string              `yaml:"debugLevel"`
-	Fetchers   []map[string]string `yaml:"fetchers"`
+	DebugLevel string                   `yaml:"debugLevel"`
+	Fetchers   []map[string]interface{} `yaml:"fetchers"`
+	Paths      []struct {
+		Path        string `yaml:"path"`
+		FetcherName string `yaml:"fetcherName"`
+	} `yaml:"paths"`
 }
 
 // GetFetcherConfigKeyValue returns a configuration key value of a fetcher
-func (cfg *Config) GetFetcherConfigKeyValue(fetcherType string, key string) string {
+func (cfg *Config) GetFetcherConfigKeyValue(fetcherType string, key string) interface{} {
 	for _, v := range cfg.Fetchers {
 		if typeValue, ok := v["type"]; ok {
 			if typeValue == fetcherType {

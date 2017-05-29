@@ -1,12 +1,56 @@
+# Supported Fetchers:
+# - local - will fetch from a local directory on this server
+#
+# - http - will fetch from an HTTP/S source
+#
+# - s3 - will fetch from a secure S3 bucket.
+#   credentials will be provided here in this config or in the environment of the process
+#
+# - gs - will fetch from a Google Storage bucket
+#   credentials will be provided here in this config or in the environment of the process/machine
+
 debugLevel: debug
 fetchers:
-  - type: local
+  # openHTTPFetch will fetch any HTTP/S path
+  # Path can be restricted to:
+  # - HTTP only
+  # - Specific Host name (i.e. fetch only from http://example.com)
+  # - Specific path (i.e. fetch only from http://example.com/path/*)
+  - name: openHTTPFetch
+    type: http
+    # username and password can be set to provide authentication to fetch
+    # files from the specified URL. The username and password will be added
+    # to any request using this fetcher
+    username: user
+    password: pass
+    # secure - true/false to force HTTPS URLs only
+    secure: true
+    # retrictHosts will only fetch URLs from the specified hosts
+    restrictHosts:
+    - example.com
+    - example2.com
+    # restrcitPaths will only fetch URLs from the specified paths.
+    restrictPaths:
+    - /path1/
+    - /path2/subpath1/
+  - name: exampleLocal
+    type: local
     path: /tmp/
-  - type: s3
+  - name: exampleAWSS3
+    type: s3
     region: us-east-1
-  - type: gs
+  - name: exampleGoogleStorage
+    type: gs
     projectId: my-project-1234
-    # - "background" for use when running inside a compute instance
+    # - "background" for use when running inside a compute instance that has access to the relevant Google Storage bucket.
     # - "file" for use when supply a service account JSON file (combined with 'serviceAccountJSONFile' key)
     securitySource: file
     serviceAccountJSONFile: /somewhere/mystuff-12345.json
+
+paths:
+  - path: /i/a/
+    fetcherName: exampleLocal
+  - path: /this/is/a/path/s3/
+    fetcherName: exampleAWSS3
+  - path: /another/path/gs/
+    fetcherName: exampleGoogleStorage

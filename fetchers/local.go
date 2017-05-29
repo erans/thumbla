@@ -7,13 +7,15 @@ import (
 	"path"
 	"strings"
 
-	"github.com/erans/thumbla/config"
 	"github.com/erans/thumbla/utils"
 	"github.com/labstack/echo"
 )
 
 // LocalFetcher fetches content from http/https sources
 type LocalFetcher struct {
+	Name        string
+	FetcherType string
+
 	Path string
 }
 
@@ -35,8 +37,23 @@ func (fetcher *LocalFetcher) Fetch(c echo.Context, url string) (io.Reader, strin
 	return bytes.NewReader(buf), utils.GetMimeTypeByFileExt(url), nil
 }
 
+// GetName returns the name assigned to this fetcher that can be used in the 'paths' section
+func (fetcher *LocalFetcher) GetName() string {
+	return fetcher.Name
+}
+
+// GetFetcherType returns the type of this fetcher to be used in the 'type' properties when defining fetchers
+func (fetcher *LocalFetcher) GetFetcherType() string {
+	return fetcher.FetcherType
+}
+
 // NewLocalFetcher creates a new fetcher that support http/https
-func NewLocalFetcher(cfg *config.Config) *LocalFetcher {
-	var path = cfg.GetFetcherConfigKeyValue("local", "path")
-	return &LocalFetcher{Path: path}
+func NewLocalFetcher(cfg map[string]interface{}) *LocalFetcher {
+	var name, _ = cfg["name"]
+	var path, _ = cfg["path"]
+	return &LocalFetcher{
+		Name:        name.(string),
+		FetcherType: "local",
+		Path:        path.(string),
+	}
 }

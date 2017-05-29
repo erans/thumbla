@@ -139,6 +139,8 @@ func writeImageToResponse(c echo.Context, contentType string, img image.Image) e
 
 // HandleImage is the image handler
 func HandleImage(c echo.Context) error {
+	c.Logger().Debugf("Path: %v", c.Path())
+
 	var imageURL string
 	var err error
 	imageURL, err = url.QueryUnescape(c.Param("url"))
@@ -152,9 +154,13 @@ func HandleImage(c echo.Context) error {
 		return c.String(http.StatusBadRequest, "Unable to parse passed URL")
 	}
 
-	fetcher := fetchers.GetFetcherByProtcool(parsedURL.Scheme)
+	c.Logger().Debugf("Searching for fetcher for path: %s", c.Path())
+	c.Logger().Debugf("URL given: %s", parsedURL.String())
+
+	fetcher := fetchers.GetFetcherByPath(c.Path())
 	if fetcher == nil {
-		return c.String(http.StatusBadRequest, fmt.Sprintf("Cannot handle URLs with scheme \"%s\". url=%s", parsedURL.Scheme, imageURL))
+		c.Logger().Errorf("No fetcher is defined for specified path")
+		return c.String(http.StatusBadRequest, "No fetcher is defined for specified path")
 	}
 
 	var imageBody io.Reader
@@ -178,6 +184,7 @@ func HandleImage(c echo.Context) error {
 	m := parseManipulators(c)
 
 	for _, action := range m {
+		c.Logger().Debugf("Manipulator requested: %s", action.Name)
 		manipulator := manipulators.GetManipulatorByName(action.Name)
 		if manipulator != nil {
 			c.Logger().Debugf("Executing Manipulator - %s", action.Name)

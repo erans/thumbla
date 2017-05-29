@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/erans/thumbla/config"
 	"github.com/erans/thumbla/fetchers"
@@ -59,7 +60,13 @@ func main() {
 
 	e.Logger.SetLevel(getDebugLevelByName(cfg.DebugLevel))
 
-	e.GET("/i/:url/*", handlers.HandleImage)
+	for _, p := range cfg.Paths {
+		var path = p.Path
+		if strings.Index(path, ":url") == -1 {
+			path = fmt.Sprintf("%s/:url/*", path)
+		}
+		e.GET(path, handlers.HandleImage)
+	}
 
 	e.Logger.Fatal(e.Start(fmt.Sprintf(":%s", *port)))
 }

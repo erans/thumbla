@@ -11,7 +11,6 @@ import (
 	"cloud.google.com/go/storage"
 	"google.golang.org/api/option"
 
-	"github.com/erans/thumbla/config"
 	"github.com/labstack/echo"
 )
 
@@ -26,6 +25,9 @@ const (
 //
 // URL Format used: gs://bucketName/path/file
 type GoogleStroageFetcher struct {
+	Name        string
+	FetcherType string
+
 	ProjectID              string
 	SecuritySource         string
 	ServiceAccountJSONFile string
@@ -97,15 +99,28 @@ func (fetcher *GoogleStroageFetcher) Fetch(c echo.Context, url string) (io.Reade
 	return bytes.NewReader(buf), contentType, nil
 }
 
+// GetName returns the name assigned to this fetcher that can be used in the 'paths' section
+func (fetcher *GoogleStroageFetcher) GetName() string {
+	return fetcher.Name
+}
+
+// GetFetcherType returns the type of this fetcher to be used in the 'type' properties when defining fetchers
+func (fetcher *GoogleStroageFetcher) GetFetcherType() string {
+	return fetcher.FetcherType
+}
+
 // NewGoogleStroageFetcher creates a new fetcher that support Google Storage buckets
-func NewGoogleStroageFetcher(cfg *config.Config) *GoogleStroageFetcher {
-	projectID := cfg.GetFetcherConfigKeyValue("gs", "projectId")
-	securitySource := cfg.GetFetcherConfigKeyValue("gs", "securitySource")
-	serviceAccountJSONFile := cfg.GetFetcherConfigKeyValue("gs", "serviceAccountJSONFile")
+func NewGoogleStroageFetcher(cfg map[string]interface{}) *GoogleStroageFetcher {
+	var name, _ = cfg["name"]
+	var projectID, _ = cfg["projectId"]
+	var securitySource, _ = cfg["securitySource"]
+	var serviceAccountJSONFile, _ = cfg["serviceAccountJSONFile"]
 
 	return &GoogleStroageFetcher{
-		ProjectID:              projectID,
-		SecuritySource:         securitySource,
-		ServiceAccountJSONFile: serviceAccountJSONFile,
+		Name:                   name.(string),
+		FetcherType:            "gs",
+		ProjectID:              projectID.(string),
+		SecuritySource:         securitySource.(string),
+		ServiceAccountJSONFile: serviceAccountJSONFile.(string),
 	}
 }
