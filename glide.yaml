@@ -1,20 +1,12 @@
 package: github.com/erans/thumbla
 import:
 - package: github.com/anthonynsimon/bild
-- package: cloud.google.com/go
-  version: ^0.6.0
-  subpackages:
-  - storage
 - package: github.com/aws/aws-sdk-go
-  version: ^1.6.10
+  version: ^1.8.44
 - package: github.com/googleapis/gax-go
 - package: golang.org/x/oauth2
   subpackages:
   - google
-- package: google.golang.org/cloud
-  version: ^0.6.0
-  subpackages:
-  - compute/...
 - package: google.golang.org/api
   subpackages:
   - oauth2/v2
@@ -26,3 +18,11 @@ import:
   version: ^3.1.0
 - package: github.com/dgrijalva/jwt-go
   version: ^3.0.0
+- package: github.com/llgcode/draw2d
+- package: cloud.google.com/go
+  version: ^0.8.0
+- package: github.com/chai2010/guetzli-go
+  version: ^1.0.1
+- package: github.com/golang/protobuf
+  subpackages:
+  - proto

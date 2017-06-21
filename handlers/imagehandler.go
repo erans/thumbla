@@ -13,10 +13,12 @@ import (
 
 	"golang.org/x/image/webp"
 
+	guetzli "github.com/chai2010/guetzli-go"
+	"github.com/labstack/echo"
+
 	"github.com/erans/thumbla/fetchers"
 	"github.com/erans/thumbla/manipulators"
 	"github.com/erans/thumbla/utils"
-	"github.com/labstack/echo"
 )
 
 type manipulatorAction struct {
@@ -127,7 +129,18 @@ func writeImageToResponse(c echo.Context, contentType string, img image.Image) e
 
 		c.Response().Header().Del("X-Quality")
 
-		jpeg.Encode(c.Response().Writer, img, &jpeg.Options{Quality: quality})
+		var encoder = c.Response().Header().Get("X-Encoder")
+		if encoder == "" {
+			encoder = "jpeg"
+		}
+
+		if encoder == "jpeg" {
+			jpeg.Encode(c.Response().Writer, img, &jpeg.Options{Quality: quality})
+		} else if encoder == "guetzli" {
+			c.Logger().Info("Using guetzli")
+			guetzli.Encode(c.Response().Writer, img, &guetzli.Options{Quality: quality})
+		}
+
 	} else if contentType == "image/png" {
 		png.Encode(c.Response().Writer, img)
 	} else {

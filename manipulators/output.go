@@ -30,6 +30,13 @@ func (manipulator *OutputManipulator) Execute(c echo.Context, params map[string]
 				}
 			}
 
+			if val, ok := params["e"]; ok {
+				c.Logger().Debugf("Encoder: %s", val)
+				if val == "guetzli" {
+					c.Response().Header().Set("X-Encoder", val)
+				}
+			}
+
 		} else {
 			return nil, fmt.Errorf("Invalid or unsupported content type format '%s'", contentType)
 		}
