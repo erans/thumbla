@@ -10,6 +10,7 @@ import:
 - package: google.golang.org/api
   subpackages:
   - oauth2/v2
+  - vision
 - package: github.com/dimfeld/httptreemux
   version: ^3.8.0
 - package: google.golang.org/grpc
@@ -18,7 +19,6 @@ import:
   version: ^3.1.0
 - package: github.com/dgrijalva/jwt-go
   version: ^3.0.0
-- package: github.com/llgcode/draw2d
 - package: cloud.google.com/go
   version: ^0.8.0
 - package: github.com/chai2010/guetzli-go
@@ -26,3 +26,5 @@ import:
 - package: github.com/golang/protobuf
   subpackages:
   - proto
+- package: github.com/golang/freetype
+- package: github.com/hashicorp/golang-lru

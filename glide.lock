@@ -1,8 +1,8 @@
-hash: 8eaa383be2481b81abe919a60745260705545bf650dca4af576a46256a7701aa
-updated: 2017-06-21T11:18:49.485921028+03:00
+hash: 0e104cd9fbc8e1c2b6968453ad8e6ff5ecb33d395813a88de33a40d8a28f7120
+updated: 2017-06-25T21:35:23.597746942+03:00
 imports:
 - name: cloud.google.com/go
-  version: e11d9d1a1722e191d3d017c08077f2c15189769a
+  version: d4f8670e9dba7e0c9dd3f6da843d678afd21c587
   subpackages:
   - compute/metadata
   - iam
@@ -24,7 +24,7 @@ imports:
   - parallel
   - transform
 - name: github.com/aws/aws-sdk-go
-  version: a9609d199df31ef4b1f347b007d63bb7c48e5619
+  version: 72e42b13da62269f68308fb6068b7ea691a416a4
   subpackages:
   - aws
   - aws/awserr
@@ -61,6 +61,8 @@ imports:
   version: 13dde8a00d96b369e7398490fd8a3af9ca114b84
 - name: github.com/go-ini/ini
   version: afbc45e87f3ba324c532d12c71918ef52e0fb194
+- name: github.com/golang/freetype
+  version: e2365dfdc4a05e4b8299a783240d4a7d5a65d4e4
 - name: github.com/golang/protobuf
   version: 1fb8fd32a09087bcd727225167edd31e1b9ceb24
   subpackages:
@@ -69,10 +71,14 @@ imports:
   - ptypes/any
 - name: github.com/googleapis/gax-go
   version: 9af46dd5a1713e8b5cd71106287eba3cefdde50b
+- name: github.com/hashicorp/golang-lru
+  version: 0a025b7e63adc15a622f29b0b2c4c3848243bbf6
+  subpackages:
+  - simplelru
 - name: github.com/jmespath/go-jmespath
   version: bd40a432e4c76585ef6b72d3fd96fb9b6dc7b68d
 - name: github.com/labstack/echo
-  version: 7676f85ef9d4a50797e17b30c4b0b1cb3c7c532a
+  version: 935a60782cbbc55110e7bd4b33120e4567cbee43
   subpackages:
   - middleware
 - name: github.com/labstack/gommon
@@ -82,8 +88,6 @@ imports:
   - color
   - log
   - random
-- name: github.com/llgcode/draw2d
-  version: dcbfbe505d35de8166ccfc47ff9e4bb020473e18
 - name: github.com/mattn/go-colorable
   version: ded68f7a9561c023e790de24279db7ebf473ea80
 - name: github.com/mattn/go-isatty
@@ -100,6 +104,9 @@ imports:
 - name: golang.org/x/image
   version: 426cfd8eeb6e08ab1932954e09e3c2cb2bc6e36d
   subpackages:
+  - font
+  - font/basicfont
+  - math/fixed
   - riff
   - vp8
   - vp8l
@@ -146,6 +153,8 @@ imports:
   - option
   - storage/v1
   - transport
+  - vision
+  - vision/v1
 - name: google.golang.org/appengine
   version: 78199dcb0669fc381c22e919e1e97eba879e8f60
   subpackages:
@@ -167,7 +176,7 @@ imports:
   - googleapis/iam/v1
   - googleapis/rpc/status
 - name: google.golang.org/grpc
-  version: 42c095b6c9bdd80d4435b064508c398afdb0ec99
+  version: b15215fb911b24a5d61d57feec4233d610530464
   subpackages:
   - codes
   - credentials

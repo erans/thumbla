@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/erans/thumbla/cache"
 	"github.com/erans/thumbla/config"
 	"github.com/erans/thumbla/fetchers"
 	"github.com/erans/thumbla/handlers"
@@ -52,6 +53,9 @@ func main() {
 
 	// Init all registered manipulators
 	manipulators.InitManipulators(cfg)
+
+	// Init the cache handlers
+	cache.InitCache(cfg)
 
 	e := echo.New()
 

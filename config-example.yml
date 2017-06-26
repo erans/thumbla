@@ -43,6 +43,7 @@ fetchers:
     type: gs
     projectId: my-project-1234
     # - "background" for use when running inside a compute instance that has access to the relevant Google Storage bucket.
+    #    or where "GOOGLE_APPLICATION_CREDENTIALS" environment variable is set
     # - "file" for use when supply a service account JSON file (combined with 'serviceAccountJSONFile' key)
     securitySource: file
     serviceAccountJSONFile: /somewhere/mystuff-12345.json
@@ -54,3 +55,27 @@ paths:
     fetcherName: exampleAWSS3
   - path: /another/path/gs/
     fetcherName: exampleGoogleStorage
+
+faceapi:
+  # microsoftFaceAPI - for Microsoft Face API
+  # awsRekognition - for AWS Rekognition Facial detection API
+  # googleCloudVisionAPI - for Google Cloud Vision API facial detection
+  defaultProvider: microsoftFaceAPI
+  microsoftFaceAPI:
+    key: ""
+    url: "https://eastus2.api.cognitive.microsoft.com/face/v1.0/detect"
+
+cache:
+  active: true
+  # Available providers:
+  # - in-memory using an LRU list
+  # - redis using an external redis server
+  provider: inmemory
+  inmemory:
+    size: 256
+  redis:
+    host: localhost
+    port: 6379
+    db: 0
+    # expiration in seconds
+    expiration: 3600

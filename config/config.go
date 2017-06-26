@@ -14,6 +14,30 @@ type Config struct {
 		Path        string `yaml:"path"`
 		FetcherName string `yaml:"fetcherName"`
 	} `yaml:"paths"`
+	FaceAPI struct {
+		DefaultProvider  string `yaml:"defaultProvider"`
+		MicrosoftFaceAPI struct {
+			Key string `yaml:"key"`
+			URL string `yaml:"url"`
+		} `yaml:"microsoftFaceAPI"`
+		GoogleCloudVisionAPI struct {
+		} `yaml:"googleCloudVisionAPI"`
+		AWSRekognition struct {
+			Region string `yaml:"region"`
+		} `yaml:"awsRekognition"`
+	} `yaml:"faceapi"`
+	Cache struct {
+		Active   bool   `yaml:"active"`
+		Provider string `yaml:"provider"`
+		InMemory struct {
+			Size int `yaml:"size"`
+		} `yaml:"inmemory"`
+		Redis struct {
+			Host string `yaml:"host"`
+			Port int    `yaml:"port"`
+			DB   int    `yaml:"db"`
+		} `yaml:"redis"`
+	} `yaml:"cache"`
 }
 
 // GetFetcherConfigKeyValue returns a configuration key value of a fetcher

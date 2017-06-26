@@ -2,7 +2,7 @@
 
 Written by Eran Sandler ([@erans](https://twitter.com/erans)) http://eran.sandler.co.il &copy; 2017
 
-Thumbla is a micro service that fetches and manipulates images. It can securely fetch from remote locations that are not publicly available.
+Thumbla is a micro service that fetches and manipulates images. It can securely fetch from remote locations that are not publicly available such as storage buckets.
 
 ## Supported Fetchers:
 - **Local** - fetch from a local directory on the server (the directory can also be mounted from a remote location and shared across servers)
@@ -14,16 +14,20 @@ Thumbla is a micro service that fetches and manipulates images. It can securely 
 Fetched images can then be manipulated via manipulators such as:
 - **Resize** - resize the image proportionally or not
 - **Fit** - fit the image to a specified size proportionally
-- **Crop** - crop parts of the images ()
+- **Crop** - crop parts of the images
 - **Flip Horizontally**
 - **Flip Vertically**
 - **Rotate** - rotate the image. resize the image to include the complete rotated original image
 - **Shear Horizontally**
 - **Shear Vertically**
+- **Face Crop** - crop an image based on the faces visible in it while keeping the original image aspect ratio. Humans recognize and react to faces much more than any other objects. Using this manipulator is great for generating thumbnails or focused images that will mostly show the faces in the picture.
+Supported Facial Detection APIs:
+  - AWS Rekognition
+  - Google Vision API (using the facial detection features)
+  - Azure Face API
 
 ## What's still missing:
 - Additional security features for the various fetchers (support auth for HTTP/S requests)
-- Face cropping manipulator - crop based on existing detected faces (will support Google Vision and Microsoft Face API)
 - Paste - paste another image on top an existing one
 - various images enhancements (brightness, contrast, levels adjustments etc)
 - Recipes - store complex image manipulation recipes and only pass input parameters
