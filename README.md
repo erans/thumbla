@@ -31,5 +31,4 @@ Supported Facial Detection APIs:
 - Paste - paste another image on top an existing one
 - various images enhancements (brightness, contrast, levels adjustments etc)
 - Recipes - store complex image manipulation recipes and only pass input parameters
-- HTTP fetchers restrictions are configurable but are not yet active
 - Crop manipulator doesn't parses "minus" values (to relative to the width or height) and percent values
