@@ -51,7 +51,11 @@ func (fetcher *GoogleStroageFetcher) getClient(ctx context.Context) (*storage.Cl
 		options = option.WithServiceAccountFile(fetcher.ServiceAccountJSONFile)
 	}
 
-	return storage.NewClient(ctx, options)
+	if options != nil {
+		return storage.NewClient(ctx, options)
+	}
+
+	return storage.NewClient(ctx)
 }
 
 // Fetch returns content from the local machine
@@ -127,31 +131,30 @@ func (fetcher *GoogleStroageFetcher) GetFetcherType() string {
 	return fetcher.FetcherType
 }
 
+func safeToString(v interface{}) string {
+	if v != nil {
+		return v.(string)
+	}
+
+	return ""
+}
+
 // NewGoogleStroageFetcher creates a new fetcher that support Google Storage buckets
 func NewGoogleStroageFetcher(cfg map[string]interface{}) *GoogleStroageFetcher {
 	var name, _ = cfg["name"]
 	var projectID, _ = cfg["projectId"]
 	var securitySource, _ = cfg["securitySource"]
 	var serviceAccountJSONFile, _ = cfg["serviceAccountJSONFile"]
-	var tempBucket, _ = cfg["bucket"]
-	var tempPath, _ = cfg["path"]
-
-	var bucket = ""
-	var path = ""
-	if tempBucket != nil {
-		bucket = tempBucket.(string)
-	}
-	if tempPath != nil {
-		path = tempPath.(string)
-	}
+	var bucket, _ = cfg["bucket"]
+	var path, _ = cfg["path"]
 
 	return &GoogleStroageFetcher{
-		Name:                   name.(string),
+		Name:                   safeToString(name),
 		FetcherType:            "gs",
-		Bucket:                 bucket,
-		Path:                   path,
-		ProjectID:              projectID.(string),
-		SecuritySource:         securitySource.(string),
-		ServiceAccountJSONFile: serviceAccountJSONFile.(string),
+		Bucket:                 safeToString(bucket),
+		Path:                   safeToString(path),
+		ProjectID:              safeToString(projectID),
+		SecuritySource:         safeToString(securitySource),
+		ServiceAccountJSONFile: safeToString(serviceAccountJSONFile),
 	}
 }

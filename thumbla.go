@@ -64,6 +64,8 @@ func main() {
 
 	e.Logger.SetLevel(getDebugLevelByName(cfg.DebugLevel))
 
+	e.GET("/health", handlers.HandleHealth)
+
 	for _, p := range cfg.Paths {
 		var path = p.Path
 		if strings.Index(path, ":url") == -1 {
