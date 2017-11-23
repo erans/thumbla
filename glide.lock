@@ -1,5 +1,5 @@
 hash: 0e104cd9fbc8e1c2b6968453ad8e6ff5ecb33d395813a88de33a40d8a28f7120
-updated: 2017-11-14T10:44:47.933225-08:00
+updated: 2017-11-22T21:26:36.581531-08:00
 imports:
 - name: cloud.google.com/go
   version: 2d3a6656c17a60b0815b7e06ab0be04eacb6e613
@@ -24,7 +24,7 @@ imports:
   - parallel
   - transform
 - name: github.com/aws/aws-sdk-go
-  version: e6c5e190452424b404ecdb81d6e3991d46b18e9d
+  version: cd721c97ef6fcfcb76b4feb14fcfead57fb01e5e
   subpackages:
   - aws
   - aws/awserr
@@ -63,7 +63,7 @@ imports:
 - name: github.com/dimfeld/httptreemux
   version: 13dde8a00d96b369e7398490fd8a3af9ca114b84
 - name: github.com/go-ini/ini
-  version: 7e7da451323b6766da368f8a1e8ec9a88a16b4a0
+  version: 32e4c1e6bc4e7d0d8451aa6b75200d19e37a536a
 - name: github.com/golang/freetype
   version: e2365dfdc4a05e4b8299a783240d4a7d5a65d4e4
 - name: github.com/golang/protobuf
@@ -82,9 +82,9 @@ imports:
   subpackages:
   - simplelru
 - name: github.com/jmespath/go-jmespath
-  version: bd40a432e4c76585ef6b72d3fd96fb9b6dc7b68d
+  version: dd801d4f4ce7ac746e7e7b4489d2fa600b3b096b
 - name: github.com/labstack/echo
-  version: b28538b2e3f5446fe6e0e47ee34cd74b662ca2ab
+  version: 0473c51f1dbd83487effce00702571d19033a6e5
   subpackages:
   - middleware
 - name: github.com/labstack/gommon
@@ -118,7 +118,7 @@ imports:
   - vp8l
   - webp
 - name: golang.org/x/net
-  version: a337091b0525af65de94df2eb7e98bd9962dcbe2
+  version: 9dfe39835686865bff950a07b394c12a98ddc811
   subpackages:
   - context
   - context/ctxhttp
@@ -180,12 +180,14 @@ imports:
   - googleapis/iam/v1
   - googleapis/rpc/status
 - name: google.golang.org/grpc
-  version: 5ffe3083946d5603a0578721101dc8165b1d5b5f
+  version: 5a9f7b402fe85096d2e1d0383435ee1876e863d0
   subpackages:
   - balancer
+  - balancer/roundrobin
   - codes
   - connectivity
   - credentials
+  - encoding
   - grpclb/grpc_lb_v1/messages
   - grpclog
   - internal
@@ -194,6 +196,8 @@ imports:
   - naming
   - peer
   - resolver
+  - resolver/dns
+  - resolver/passthrough
   - stats
   - status
   - tap

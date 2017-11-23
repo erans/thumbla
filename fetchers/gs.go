@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/url"
+	"path"
 
 	"cloud.google.com/go/storage"
 	"google.golang.org/api/option"
@@ -27,6 +28,8 @@ const (
 type GoogleStroageFetcher struct {
 	Name        string
 	FetcherType string
+	Bucket      string
+	Path        string
 
 	ProjectID              string
 	SecuritySource         string
@@ -64,7 +67,15 @@ func (fetcher *GoogleStroageFetcher) Fetch(c echo.Context, url string) (io.Reade
 
 	var bucketName, objectKey = fetcher.getBucketAndObjectKeyFromURL(c, url)
 	if bucketName == "" || objectKey == "" {
-		return nil, "", fmt.Errorf("Failed to parse file URL '%s'", url)
+		c.Logger().Debugf("Failed to get bucket and object key from URL, assume this is a relative one")
+		bucketName = fetcher.Bucket
+		objectKey = path.Join(fetcher.Path, url)
+
+		c.Logger().Debugf("bucketName=%s objectKey=%s", bucketName, objectKey)
+
+		if bucketName == "" || objectKey == "" {
+			return nil, "", fmt.Errorf("Failed to parse file URL '%s'", url)
+		}
 	}
 
 	c.Logger().Debugf("bucketName=%s  objectKey=%s", bucketName, objectKey)
@@ -75,8 +86,15 @@ func (fetcher *GoogleStroageFetcher) Fetch(c echo.Context, url string) (io.Reade
 	}
 	var obj *storage.ObjectHandle
 	var objAttrs *storage.ObjectAttrs
-	// The URL contains a leading "/" as part of the path, the API doesn't need it
-	obj = bucket.Object(objectKey[1:])
+	var objectPath = objectKey
+	if objectKey[0] == '/' {
+		// The URL contains a leading "/" as part of the path, the API doesn't need it
+		objectPath = objectKey[1:]
+	}
+
+	c.Logger().Debugf("objectPath=%s", objectPath)
+
+	obj = bucket.Object(objectPath)
 
 	if objAttrs, err = obj.Attrs(ctx); err != nil {
 		c.Logger().Errorf("Failed to fetch object attributes. Reason=%s", err)
@@ -115,10 +133,23 @@ func NewGoogleStroageFetcher(cfg map[string]interface{}) *GoogleStroageFetcher {
 	var projectID, _ = cfg["projectId"]
 	var securitySource, _ = cfg["securitySource"]
 	var serviceAccountJSONFile, _ = cfg["serviceAccountJSONFile"]
+	var tempBucket, _ = cfg["bucket"]
+	var tempPath, _ = cfg["path"]
+
+	var bucket = ""
+	var path = ""
+	if tempBucket != nil {
+		bucket = tempBucket.(string)
+	}
+	if tempPath != nil {
+		path = tempPath.(string)
+	}
 
 	return &GoogleStroageFetcher{
 		Name:                   name.(string),
 		FetcherType:            "gs",
+		Bucket:                 bucket,
+		Path:                   path,
 		ProjectID:              projectID.(string),
 		SecuritySource:         securitySource.(string),
 		ServiceAccountJSONFile: serviceAccountJSONFile.(string),

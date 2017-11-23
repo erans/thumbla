@@ -13,7 +13,7 @@ import (
 
 	"golang.org/x/image/webp"
 
-	guetzli "github.com/chai2010/guetzli-go"
+	//guetzli "github.com/chai2010/guetzli-go"
 	"github.com/labstack/echo"
 
 	"github.com/erans/thumbla/fetchers"
@@ -136,10 +136,10 @@ func writeImageToResponse(c echo.Context, contentType string, img image.Image) e
 
 		if encoder == "jpeg" {
 			jpeg.Encode(c.Response().Writer, img, &jpeg.Options{Quality: quality})
-		} else if encoder == "guetzli" {
+		} /* else if encoder == "guetzli" {
 			c.Logger().Info("Using guetzli")
 			guetzli.Encode(c.Response().Writer, img, &guetzli.Options{Quality: quality})
-		}
+		}*/
 
 	} else if contentType == "image/png" {
 		png.Encode(c.Response().Writer, img)
