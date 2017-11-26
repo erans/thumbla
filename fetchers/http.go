@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 
+	"github.com/erans/thumbla/utils"
 	"github.com/labstack/echo"
 )
 
@@ -78,9 +79,9 @@ func (fetcher *HTTPFetcher) GetFetcherType() string {
 func NewHTTPFetcher(cfg map[string]interface{}) *HTTPFetcher {
 	var ok bool
 
-	var name, _ = cfg["name"].(string)
-	var username, _ = cfg["username"].(string)
-	var password, _ = cfg["password"].(string)
+	var name, _ = cfg["name"]
+	var username, _ = cfg["username"]
+	var password, _ = cfg["password"]
 	var secure bool
 	if secure, ok = cfg["secure"].(bool); !ok {
 		secure = false
@@ -96,10 +97,10 @@ func NewHTTPFetcher(cfg map[string]interface{}) *HTTPFetcher {
 	}
 
 	return &HTTPFetcher{
-		Name:          name,
+		Name:          utils.SafeCastToString(name),
 		FetcherType:   "http",
-		UserName:      username,
-		Password:      password,
+		UserName:      utils.SafeCastToString(username),
+		Password:      utils.SafeCastToString(password),
 		Secure:        secure,
 		RestrictHosts: restrictHosts,
 		RestrictPaths: restrictPaths,

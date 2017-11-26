@@ -12,6 +12,7 @@ import (
 	"cloud.google.com/go/storage"
 	"google.golang.org/api/option"
 
+	"github.com/erans/thumbla/utils"
 	"github.com/labstack/echo"
 )
 
@@ -131,14 +132,6 @@ func (fetcher *GoogleStroageFetcher) GetFetcherType() string {
 	return fetcher.FetcherType
 }
 
-func safeToString(v interface{}) string {
-	if v != nil {
-		return v.(string)
-	}
-
-	return ""
-}
-
 // NewGoogleStroageFetcher creates a new fetcher that support Google Storage buckets
 func NewGoogleStroageFetcher(cfg map[string]interface{}) *GoogleStroageFetcher {
 	var name, _ = cfg["name"]
@@ -149,12 +142,12 @@ func NewGoogleStroageFetcher(cfg map[string]interface{}) *GoogleStroageFetcher {
 	var path, _ = cfg["path"]
 
 	return &GoogleStroageFetcher{
-		Name:                   safeToString(name),
+		Name:                   utils.SafeCastToString(name),
 		FetcherType:            "gs",
-		Bucket:                 safeToString(bucket),
-		Path:                   safeToString(path),
-		ProjectID:              safeToString(projectID),
-		SecuritySource:         safeToString(securitySource),
-		ServiceAccountJSONFile: safeToString(serviceAccountJSONFile),
+		Bucket:                 utils.SafeCastToString(bucket),
+		Path:                   utils.SafeCastToString(path),
+		ProjectID:              utils.SafeCastToString(projectID),
+		SecuritySource:         utils.SafeCastToString(securitySource),
+		ServiceAccountJSONFile: utils.SafeCastToString(serviceAccountJSONFile),
 	}
 }

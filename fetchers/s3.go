@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/erans/thumbla/utils"
 	"github.com/labstack/echo"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -138,10 +139,10 @@ func NewS3Fetcher(cfg map[string]interface{}) *S3Fetcher {
 	var secretAccessKey, _ = cfg["secretAccessKey"]
 
 	return &S3Fetcher{
-		Name:            name.(string),
+		Name:            utils.SafeCastToString(name),
 		FetcherType:     "s3",
-		Region:          region.(string),
-		AccessKeyID:     accessKeyID.(string),
-		SecretAccessKey: secretAccessKey.(string),
+		Region:          utils.SafeCastToString(region),
+		AccessKeyID:     utils.SafeCastToString(accessKeyID),
+		SecretAccessKey: utils.SafeCastToString(secretAccessKey),
 	}
 }

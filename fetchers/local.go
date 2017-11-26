@@ -52,8 +52,8 @@ func NewLocalFetcher(cfg map[string]interface{}) *LocalFetcher {
 	var name, _ = cfg["name"]
 	var path, _ = cfg["path"]
 	return &LocalFetcher{
-		Name:        name.(string),
+		Name:        utils.SafeCastToString(name),
 		FetcherType: "local",
-		Path:        path.(string),
+		Path:        utils.SafeCastToString(path),
 	}
 }
