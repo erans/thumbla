@@ -3,10 +3,12 @@ package manipulators
 import (
 	"fmt"
 	"image"
+	"math"
 	"strconv"
 
 	"github.com/anthonynsimon/bild/transform"
 	"github.com/erans/thumbla/config"
+	"github.com/erans/thumbla/utils"
 	"github.com/labstack/echo"
 )
 
@@ -61,22 +63,29 @@ func (manipulator *ResizeManipulator) Execute(c echo.Context, params map[string]
 
 	imgWidth := img.Bounds().Size().X
 	imgHeight := img.Bounds().Size().Y
+	var ratio = math.Max(float64(imgWidth), float64(imgHeight)) / math.Min(float64(imgWidth), float64(imgHeight))
 
-	var widthGreater = (imgWidth > imgHeight)
-	var ratio float64
-	if widthGreater {
-		ratio = float64(imgWidth) / float64(imgHeight)
+	c.Logger().Debugf("resize: ratio=%f", ratio)
+
+	if imgWidth > imgHeight {
+		if width == -1 {
+			width = utils.Round(float64(height)*ratio, .5, 0)
+		}
+
+		if height == -1 {
+			height = utils.Round(float64(width)/ratio, .5, 0)
+		}
 	} else {
-		ratio = float64(imgHeight) / float64(imgWidth)
+		if width == -1 {
+			width = utils.Round(float64(height)/ratio, .5, 0)
+		}
+
+		if height == -1 {
+			height = utils.Round(float64(width)*ratio, .5, 0)
+		}
 	}
 
-	if width == -1 {
-		width = float64(height) * ratio
-	}
-
-	if height == -1 {
-		height = float64(width) / ratio
-	}
+	c.Logger().Debugf("Original w: %d  h: %d   New w: %d h: %d  %fx%f", imgWidth, imgHeight, int(width), int(height), width, height)
 
 	img = transform.Resize(img, int(width), int(height), resamplingFilter)
 
