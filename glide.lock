@@ -1,8 +1,8 @@
 hash: 0e104cd9fbc8e1c2b6968453ad8e6ff5ecb33d395813a88de33a40d8a28f7120
-updated: 2017-11-22T21:26:36.581531-08:00
+updated: 2018-02-02T23:31:50.818084554-08:00
 imports:
 - name: cloud.google.com/go
-  version: 2d3a6656c17a60b0815b7e06ab0be04eacb6e613
+  version: 767c40d6a2e058483c25fa193e963a22da17236d
   subpackages:
   - compute/metadata
   - iam
@@ -24,7 +24,7 @@ imports:
   - parallel
   - transform
 - name: github.com/aws/aws-sdk-go
-  version: cd721c97ef6fcfcb76b4feb14fcfead57fb01e5e
+  version: 1b176c5c6b57adb03bb982c21930e708ebca5a77
   subpackages:
   - aws
   - aws/awserr
@@ -84,7 +84,7 @@ imports:
 - name: github.com/jmespath/go-jmespath
   version: dd801d4f4ce7ac746e7e7b4489d2fa600b3b096b
 - name: github.com/labstack/echo
-  version: 0473c51f1dbd83487effce00702571d19033a6e5
+  version: b338075a0fc6e1a0683dbf03d09b4957a289e26f
   subpackages:
   - middleware
 - name: github.com/labstack/gommon
@@ -180,9 +180,10 @@ imports:
   - googleapis/iam/v1
   - googleapis/rpc/status
 - name: google.golang.org/grpc
-  version: 5a9f7b402fe85096d2e1d0383435ee1876e863d0
+  version: 6b51017f791ae1cfbec89c52efdf444b13b550ef
   subpackages:
   - balancer
+  - balancer/base
   - balancer/roundrobin
   - codes
   - connectivity

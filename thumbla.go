@@ -19,6 +19,7 @@ import (
 
 var (
 	configFile = kingpin.Flag("config", "Configuration file").Short('c').OverrideDefaultFromEnvar("THUMBLACFG").Required().String()
+	host       = kingpin.Flag("host", "Host to listen on").Short('o').OverrideDefaultFromEnvar("HOST").Default("127.0.0.1").String()
 	port       = kingpin.Flag("port", "Listening Port").Short('p').OverrideDefaultFromEnvar("PORT").Default("1323").String()
 )
 
@@ -74,5 +75,5 @@ func main() {
 		e.GET(path, handlers.HandleImage)
 	}
 
-	e.Logger.Fatal(e.Start(fmt.Sprintf(":%s", *port)))
+	e.Logger.Fatal(e.Start(fmt.Sprintf("%s:%s", *host, *port)))
 }

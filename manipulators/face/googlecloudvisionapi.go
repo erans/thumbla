@@ -9,6 +9,7 @@ import (
 	"net/http"
 
 	"golang.org/x/oauth2/google"
+	"google.golang.org/api/googleapi/transport"
 	vision "google.golang.org/api/vision/v1"
 
 	"github.com/erans/thumbla/config"
@@ -35,8 +36,15 @@ func (d *GoogleCloudVisionAPIDetector) Detect(c echo.Context, cfg *config.Config
 	var err error
 	var client *http.Client
 	ctx := context.Background()
-	if client, err = google.DefaultClient(ctx, vision.CloudPlatformScope); err != nil {
-		return nil, err
+
+	if cfg.FaceAPI.GoogleCloudVisionAPI.Key != "" {
+		client = &http.Client{
+			Transport: &transport.APIKey{Key: cfg.FaceAPI.GoogleCloudVisionAPI.Key},
+		}
+	} else {
+		if client, err = google.DefaultClient(ctx, vision.CloudPlatformScope); err != nil {
+			return nil, err
+		}
 	}
 
 	var service *vision.Service

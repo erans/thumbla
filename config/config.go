@@ -21,6 +21,7 @@ type Config struct {
 			URL string `yaml:"url"`
 		} `yaml:"microsoftFaceAPI"`
 		GoogleCloudVisionAPI struct {
+			Key string `yaml:"key"`
 		} `yaml:"googleCloudVisionAPI"`
 		AWSRekognition struct {
 			Region string `yaml:"region"`
