@@ -49,6 +49,9 @@ func main() {
 		return
 	}
 
+	// Set currently active global config
+	config.SetConfig(cfg)
+
 	// Init all registered fetchers
 	fetchers.InitFetchers(cfg)
 

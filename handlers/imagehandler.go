@@ -16,6 +16,7 @@ import (
 	//guetzli "github.com/chai2010/guetzli-go"
 	"github.com/labstack/echo"
 
+	"github.com/erans/thumbla/config"
 	"github.com/erans/thumbla/fetchers"
 	"github.com/erans/thumbla/manipulators"
 	"github.com/erans/thumbla/utils"
@@ -211,6 +212,11 @@ func HandleImage(c echo.Context) error {
 	if outputContentType == "" {
 		outputContentType = contentType
 		c.Response().Header().Set("Content-Type", outputContentType)
+	}
+
+	var cacheControlHeaderValue = config.GetConfig().CacheControlHeader
+	if cacheControlHeaderValue != "" {
+		c.Response().Header().Set("Cache-Control", cacheControlHeaderValue)
 	}
 
 	err = writeImageToResponse(c, outputContentType, img)

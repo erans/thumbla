@@ -6,11 +6,16 @@ import (
 	yaml "gopkg.in/yaml.v2"
 )
 
+var (
+	globalConfig *Config
+)
+
 // Config provides a configuration struct for the server
 type Config struct {
-	DebugLevel string                   `yaml:"debugLevel"`
-	Fetchers   []map[string]interface{} `yaml:"fetchers"`
-	Paths      []struct {
+	CacheControlHeader string                   `yaml:"cacheControlHeader"`
+	DebugLevel         string                   `yaml:"debugLevel"`
+	Fetchers           []map[string]interface{} `yaml:"fetchers"`
+	Paths              []struct {
 		Path        string `yaml:"path"`
 		FetcherName string `yaml:"fetcherName"`
 	} `yaml:"paths"`
@@ -70,4 +75,14 @@ func LoadConfig(configFile string) (*Config, error) {
 	}
 
 	return &c, nil
+}
+
+// SetConfig set currently active config
+func SetConfig(cfg *Config) {
+	globalConfig = cfg
+}
+
+// GetConfig return the currently active global config
+func GetConfig() *Config {
+	return globalConfig
 }
