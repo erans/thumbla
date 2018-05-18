@@ -1,5 +1,5 @@
-hash: 8c7b0a3ba81b683a9f7845f0a04bf6b49111842cf97a4910cbc9515d16ee18ef
-updated: 2018-05-18T10:08:00.727565365-07:00
+hash: 810c75005ceb8b3ead5bf01fee9e97b7b201c81c5cd1552357496cc030f43d8d
+updated: 2018-05-18T10:11:21.069306425-07:00
 imports:
 - name: cloud.google.com/go
   version: 056a55f54a6cc77b440b31a56a5e7c3982d32811
@@ -89,7 +89,6 @@ imports:
 - name: github.com/labstack/echo
   version: 6d227dfea4d2e52cb76856120b3c17f758139b4e
   subpackages:
-  - '...'
   - middleware
 - name: github.com/labstack/gommon
   version: 0a22a0df01a7c84944c607e8a6e91cfe421ea7ed
@@ -203,6 +202,7 @@ imports:
 - name: google.golang.org/grpc
   version: 41344da2231b913fa3d983840a57a6b1b7b631a1
   subpackages:
+  - '...'
   - balancer
   - balancer/base
   - balancer/roundrobin
