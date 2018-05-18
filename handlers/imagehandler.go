@@ -216,6 +216,7 @@ func HandleImage(c echo.Context) error {
 
 	var cacheControlHeaderValue = config.GetConfig().CacheControlHeader
 	if cacheControlHeaderValue != "" {
+		c.Logger().Debugf("Setting cache-control header value: %s", cacheControlHeaderValue)
 		c.Response().Header().Set("Cache-Control", cacheControlHeaderValue)
 	}
 
