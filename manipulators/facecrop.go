@@ -21,6 +21,13 @@ import (
 )
 
 // FaceCropManipulator crops the image in a smart way to include most of the faces in the image
+//
+// Supported parameters:
+// - debug (boolean - 0/1) - enable debug view to see what faces were detected and how the cropping will be performed
+// - pp (float 0.x-1.0) - factor with which to enlarge the crop area (default 0.2 = 20%)
+// - provider (string) - force a specific provider as defined in the config
+// - useCache (boolean - 0/1) - enable/disable the use of cache for the Facial detection API result
+// - kio (boolean - 0/1) - Keep image orientation - keep the face croped with the same orientation as the original image
 type FaceCropManipulator struct {
 	DefaultProvider string
 	Cfg             *config.Config
