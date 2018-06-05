@@ -2,6 +2,8 @@
 
 Written by Eran Sandler ([@erans](https://twitter.com/erans)) http://eran.sandler.co.il &copy; 2018
 
+![Thumbla](examples/img/thumbla-logo.png)
+
 Thumbla is a micro service that fetches and manipulates images. It can securely fetch from remote locations that are not publicly available such as storage buckets and manipulate images in multiple ways.
 
 ## Supported Fetchers:
@@ -67,7 +69,7 @@ Here is an example of how Face cropping detects faces (blue rectangles) and how 
 ![Debugging Face Cropping](examples/img/facecrop-debug.jpg)
 
 The result would look like this:<br/>
-![Debugging Face Cropping](examples/img/facecrop-result.jpg)
+![Result Face Cropping](examples/img/facecrop-result.jpg)
 
 ## Usage - Configuration
 See [`config-example.yml`](config-example.yml) for an example of the configuration.
