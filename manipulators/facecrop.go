@@ -136,7 +136,7 @@ func (m *FaceCropManipulator) Execute(c echo.Context, params map[string]string, 
 		for i, v := range faces {
 			if debug {
 				m.drawRect(v.Min.X, v.Min.Y, v.Max.X, v.Max.Y, 3, color.RGBA{0, 0, 255, 255}, debugImage)
-				m.addLabel(&debugImage, v.Min.X+10, v.Min.Y+20, color.RGBA{0, 0, 255, 255}, fmt.Sprintf("%dx%d - Face %d", v.Max.X-v.Min.X, v.Max.Y-v.Min.Y, i), true)
+				m.addLabel(&debugImage, v.Min.X+10, v.Max.Y-10, color.RGBA{0, 0, 255, 255}, fmt.Sprintf("%dx%d F%d", v.Max.X-v.Min.X, v.Max.Y-v.Min.Y, i), true)
 			}
 
 			if v.Min.X < minX0 {
@@ -171,7 +171,7 @@ func (m *FaceCropManipulator) Execute(c echo.Context, params map[string]string, 
 		if debug {
 			// Draw the bounding rectangle before padding
 			m.drawRect(boundMin.X, boundMin.Y, boundMax.X, boundMax.Y, 4, color.RGBA{0, 255, 0, 255}, debugImage)
-			m.addLabel(&debugImage, boundMin.X+10, boundMin.Y+20, color.RGBA{0, 255, 0, 255}, fmt.Sprintf("%dx%d - Faces Bound Rect", boundWidth, boundHeight), true)
+			m.addLabel(&debugImage, boundMin.X+10, boundMin.Y+20, color.RGBA{0, 255, 0, 255}, fmt.Sprintf("%dx%d", boundWidth, boundHeight), true)
 		}
 
 		// Add padding to capture slightly more than the faces
@@ -199,7 +199,7 @@ func (m *FaceCropManipulator) Execute(c echo.Context, params map[string]string, 
 		if debug {
 			// Draw the bounding rectangle after padding
 			m.drawRect(boundMin.X, boundMin.Y, boundMax.X, boundMax.Y, 4, color.RGBA{255, 255, 0, 255}, debugImage)
-			m.addLabel(&debugImage, boundMin.X+10, boundMin.Y+20, color.RGBA{255, 255, 0, 255}, fmt.Sprintf("%dx%d - Faces Bound Rect Padded", boundWidth, boundHeight), true)
+			m.addLabel(&debugImage, boundMin.X+10, boundMin.Y+20, color.RGBA{255, 255, 0, 255}, fmt.Sprintf("%dx%d", boundWidth, boundHeight), true)
 		}
 
 		var keepImageOrientation = true
@@ -234,13 +234,13 @@ func (m *FaceCropManipulator) Execute(c echo.Context, params map[string]string, 
 		c.Logger().Debugf("Resized Bound Min %v", boundMin)
 		c.Logger().Debugf("Resized Bound Max %v", boundMax)
 
-		boundWidth = boundMax.X - boundMin.X
-		boundHeight = boundMax.Y - boundMin.Y
+		//boundWidth = boundMax.X - boundMin.X
+		//boundHeight = boundMax.Y - boundMin.Y
 
 		if debug {
 			// Draw the bounding rectangle after padding
-			m.drawRect(boundMin.X, boundMin.Y, boundMax.X, boundMax.Y, 4, color.RGBA{255, 0, 0, 255}, debugImage)
-			m.addLabel(&debugImage, boundMin.X+10, boundMin.Y+20, color.RGBA{255, 0, 0, 255}, fmt.Sprintf("%dx%d - Final image to be cropped", boundWidth, boundHeight), true)
+			//m.drawRect(boundMin.X, boundMin.Y, boundMax.X, boundMax.Y, 4, color.RGBA{255, 0, 0, 255}, debugImage)
+			//m.addLabel(&debugImage, boundMin.X+10, boundMin.Y+20, color.RGBA{255, 0, 0, 255}, fmt.Sprintf("%dx%d - Final image to be cropped", boundWidth, boundHeight), true)
 		}
 
 		if !debug {

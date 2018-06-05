@@ -26,6 +26,19 @@ Supported Facial Detection APIs:
   - Google Vision API (using the facial detection features)
   - Azure Face API
 
+## Face Cropping
+crop an image based on the faces visible in it while keeping the original image aspect ratio. Humans recognize and react to faces much more than any other objects. Using this manipulator is great for generating thumbnails or focused images that will mostly show the faces in the picture.
+Supported Facial Detection APIs:
+  - AWS Rekognition
+  - Google Vision API (using the facial detection features)
+  - Azure Face API
+
+Here is an example of how Face cropping detects faces (blue rectangles) and how it would crop these images (the yellow rectangle)
+![Debugging Face Cropping](examples/img/facecrop-debug.jpg)
+
+The result would look like this:
+![Debugging Face Cropping](examples/img/facecrop-result.jpg)
+
 ## What's still missing:
 - Additional security features for the various fetchers (support auth for HTTP/S requests)
 - Paste - paste another image on top an existing one
