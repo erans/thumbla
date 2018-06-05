@@ -33,10 +33,11 @@ Supported Facial Detection APIs:
   - Google Vision API (using the facial detection features)
   - Azure Face API
 
-Here is an example of how Face cropping detects faces (blue rectangles) and how it would crop these images (the yellow rectangle)
+Here is an example of how Face cropping detects faces (blue rectangles) and how it would crop these images (the yellow rectangle):<br/>
+
 ![Debugging Face Cropping](examples/img/facecrop-debug.jpg)
 
-The result would look like this:
+The result would look like this:<br/>
 ![Debugging Face Cropping](examples/img/facecrop-result.jpg)
 
 ## What's still missing:
