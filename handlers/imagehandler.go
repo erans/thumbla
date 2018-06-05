@@ -155,6 +155,8 @@ func writeImageToResponse(c echo.Context, contentType string, img image.Image) e
 func HandleImage(c echo.Context) error {
 	c.Logger().Debugf("Path: %v", c.Path())
 
+	pathConfig := config.GetConfig().GetPathConfigByPath(c.Path())
+
 	var imageURL string
 	var err error
 	imageURL, err = url.QueryUnescape(c.Param("url"))
@@ -215,6 +217,10 @@ func HandleImage(c echo.Context) error {
 	}
 
 	var cacheControlHeaderValue = config.GetConfig().CacheControlHeader
+	if pathConfig != nil && pathConfig.CacheControl != "" {
+		cacheControlHeaderValue = pathConfig.CacheControl
+	}
+	c.Logger().Debugf("Config cache-control header value: %s", cacheControlHeaderValue)
 	if cacheControlHeaderValue != "" {
 		c.Logger().Debugf("Setting cache-control header value: %s", cacheControlHeaderValue)
 		c.Response().Header().Set("Cache-Control", cacheControlHeaderValue)

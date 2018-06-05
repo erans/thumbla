@@ -10,16 +10,20 @@ var (
 	globalConfig *Config
 )
 
+// PathConfig represents configuration for a path serving images
+type PathConfig struct {
+	Path         string `yaml:"path"`
+	FetcherName  string `yaml:"fetcherName"`
+	CacheControl string `yaml:"cacheControl"`
+}
+
 // Config provides a configuration struct for the server
 type Config struct {
 	CacheControlHeader string                   `yaml:"cacheControlHeader"`
 	DebugLevel         string                   `yaml:"debugLevel"`
 	Fetchers           []map[string]interface{} `yaml:"fetchers"`
-	Paths              []struct {
-		Path        string `yaml:"path"`
-		FetcherName string `yaml:"fetcherName"`
-	} `yaml:"paths"`
-	FaceAPI struct {
+	Paths              []PathConfig             `yaml:"paths"`
+	FaceAPI            struct {
 		DefaultProvider  string `yaml:"defaultProvider"`
 		MicrosoftFaceAPI struct {
 			Key string `yaml:"key"`
@@ -59,6 +63,17 @@ func (cfg *Config) GetFetcherConfigKeyValue(fetcherType string, key string) inte
 	}
 
 	return ""
+}
+
+// GetPathConfigByPath returns the path config by the specified path
+func (cfg *Config) GetPathConfigByPath(path string) *PathConfig {
+	for _, p := range cfg.Paths {
+		if p.Path == path {
+			return &p
+		}
+	}
+
+	return nil
 }
 
 // LoadConfig loads the config file
