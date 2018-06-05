@@ -1,8 +1,8 @@
 hash: 810c75005ceb8b3ead5bf01fee9e97b7b201c81c5cd1552357496cc030f43d8d
-updated: 2018-05-18T10:11:21.069306425-07:00
+updated: 2018-06-05T12:21:20.720006594-07:00
 imports:
 - name: cloud.google.com/go
-  version: 056a55f54a6cc77b440b31a56a5e7c3982d32811
+  version: 0fd7230b2a7505833d5f69b75cbd6c9582401479
   subpackages:
   - compute/metadata
   - iam
@@ -25,7 +25,7 @@ imports:
   - parallel
   - transform
 - name: github.com/aws/aws-sdk-go
-  version: 95ba34afe9f6b3e8e10a38c81a51cdffc34f9443
+  version: 60a85d13d02126d8d15ea3f21fd57ac3a2774f37
   subpackages:
   - aws
   - aws/awserr
@@ -37,6 +37,7 @@ imports:
   - aws/credentials/ec2rolecreds
   - aws/credentials/endpointcreds
   - aws/credentials/stscreds
+  - aws/csm
   - aws/defaults
   - aws/ec2metadata
   - aws/endpoints
@@ -47,6 +48,8 @@ imports:
   - internal/sdkrand
   - internal/shareddefaults
   - private/protocol
+  - private/protocol/eventstream
+  - private/protocol/eventstream/eventstreamapi
   - private/protocol/json/jsonutil
   - private/protocol/jsonrpc
   - private/protocol/query
@@ -66,11 +69,11 @@ imports:
 - name: github.com/dimfeld/httptreemux
   version: 13dde8a00d96b369e7398490fd8a3af9ca114b84
 - name: github.com/go-ini/ini
-  version: bda519ae5f4cbc60d391ff8610711627a08b86ae
+  version: 06f5f3d67269ccec1fe5fe4134ba6e982984f7f5
 - name: github.com/golang/freetype
   version: e2365dfdc4a05e4b8299a783240d4a7d5a65d4e4
 - name: github.com/golang/protobuf
-  version: 668a607657a5d387d6333648a2d9c749761fdc69
+  version: 3a3da3a4e26776cc22a79ef46d5d58477532dede
   subpackages:
   - proto
   - protoc-gen-go/descriptor
@@ -79,7 +82,7 @@ imports:
   - ptypes/duration
   - ptypes/timestamp
 - name: github.com/googleapis/gax-go
-  version: de2cc08e690b99dd3f7d19937d80d3d54e04682f
+  version: 254b60fe060127b9fd3c420fadd0906bf0382227
 - name: github.com/hashicorp/golang-lru
   version: 0fb14efe8c47ae851c0034ed7a448854d3d34cf3
   subpackages:
@@ -106,9 +109,10 @@ imports:
 - name: github.com/valyala/fasttemplate
   version: dcecefd839c4193db0d35b88ec65b4c12d360ab0
 - name: go.opencensus.io
-  version: ebd8d31470fedf6c27d0e3056653ddff642509b8
+  version: 57c74344f14bef266fd8bae3e3b8e67920295263
   subpackages:
   - exporter/stackdriver/propagation
+  - exporterutil
   - internal
   - internal/tagencoding
   - plugin/ochttp
@@ -121,13 +125,13 @@ imports:
   - trace/internal
   - trace/propagation
 - name: golang.org/x/crypto
-  version: 1a580b3eff7814fc9b40602fd35256c63b50f491
+  version: df8d4716b3472e4a531c33cedbe537dae921a1a9
   subpackages:
   - acme
   - acme/
   - acme/autocert
 - name: golang.org/x/image
-  version: f315e440302883054d0c2bd85486878cb4f8572c
+  version: af66defab954cb421ca110193eed9477c8541e2a
   subpackages:
   - font
   - font/basicfont
@@ -137,7 +141,7 @@ imports:
   - vp8l
   - webp
 - name: golang.org/x/net
-  version: 2491c5de3490fced2f6cff376127c667efeed857
+  version: 1e491301e022f8f977054da4c2d852decd59571f
   subpackages:
   - context
   - context/ctxhttp
@@ -148,14 +152,14 @@ imports:
   - internal/timeseries
   - trace
 - name: golang.org/x/oauth2
-  version: cdc340f7c179dbbfa4afd43b7614e8fcadde4269
+  version: 1e0a3fa8ba9a5c9eb35c271780101fdaf1b205d7
   subpackages:
   - google
   - internal
   - jws
   - jwt
 - name: golang.org/x/sys
-  version: 7c87d13f8e835d2fb3a70a2912c811ed0c1d241b
+  version: c11f84a56e43e20a78cee75a7c034031ecf57d1f
   subpackages:
   - unix
 - name: golang.org/x/text
@@ -166,7 +170,7 @@ imports:
   - unicode/bidi
   - unicode/norm
 - name: google.golang.org/api
-  version: aedc137bffcaca05f836e35c6d182fcb7a68b1c0
+  version: 00e3bb8d04691e25ee2fccf98c866bcb7925c3ec
   subpackages:
   - gensupport
   - googleapi
@@ -181,7 +185,7 @@ imports:
   - vision
   - vision/v1
 - name: google.golang.org/appengine
-  version: b9aad5d628b283f265adf8d3557faae187a8d015
+  version: b1f26356af11148e710935ed1ac8a7f5702c7612
   subpackages:
   - internal
   - internal/app_identity
@@ -193,7 +197,7 @@ imports:
   - internal/urlfetch
   - urlfetch
 - name: google.golang.org/genproto
-  version: 7bb2a897381c9c5ab2aeb8614f758d7766af68ff
+  version: 81158efcc9f219c511e4d3c0d61a0e6e49c01a24
   subpackages:
   - googleapis/api/annotations
   - googleapis/iam/v1
