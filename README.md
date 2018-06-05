@@ -97,7 +97,7 @@ This will rotate the image 35 degrees and resize the result to a width of 350px 
 kubectl create configmap thumbla-config --from-file=thumbla.yml
 ```
 
-You can then mount `upupaway-config` as a volume inside your container and point to it using an environment varaible `UUA_CFG`. For example:
+You can then mount `thumbla-config` as a volume inside your container and point to it using an environment varaible `THUMBLACFG`. For example:
 ```
 apiVersion: v1
 kind: ReplicationController
