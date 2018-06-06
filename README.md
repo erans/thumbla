@@ -9,8 +9,8 @@ Thumbla is a micro service that fetches and manipulates images. It can securely 
 ## Supported Fetchers:
 - **Local** - fetch from a local directory on the server (the directory can also be mounted from a remote location and shared across servers)
 - **HTTP/S** - fetch from a remote HTTP/S server
-- **AWS S3** - fetch from an S3 bucket. Supports accessing a private S3 bucket.
-- **Google Storage** - fetch from a Google Storage bucket. Support accessing a private Google Storage bucket.
+- **[AWS S3](https://aws.amazon.com/s3/)** - fetch from an S3 bucket. Supports accessing a private S3 bucket.
+- **[Google Storage](https://cloud.google.com/storage/)** - fetch from a Google Storage bucket. Support accessing a private Google Storage bucket.
 
 ### Fetchers Configuration
 - **Local** - fetches files from a locally accessible folder on the server
@@ -60,9 +60,9 @@ Fetched images can then be manipulated via manipulators such as:
 Face cropping crops an image based on the faces visible in it while keeping the original image aspect ratio. Humans recognize and react to faces much more than any other objects. The face crop manipulator is a great way to generate thumbnails or focused images that will mostly show the faces in the picture.
 
 Supported Facial Detection APIs:
-  - AWS Rekognition
-  - Google Vision API (using the facial detection features)
-  - Azure Face API
+  - [AWS Rekognition](https://aws.amazon.com/rekognition/)
+  - [Google Vision API](https://cloud.google.com/vision/) (using the facial detection features)
+  - [Azure Face API](https://azure.microsoft.com/en-us/services/cognitive-services/face/)
 
 Here is an example of how Face cropping detects faces (blue rectangles) and how it would crop these images (the yellow rectangle):<br/>
 
