@@ -6,11 +6,14 @@ import (
 	"image/jpeg"
 	"image/png"
 	"io"
+	"math"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 
+	"github.com/srwiley/oksvg"
+	"github.com/srwiley/rasterx"
 	"golang.org/x/image/webp"
 
 	//guetzli "github.com/chai2010/guetzli-go"
@@ -27,8 +30,8 @@ type manipulatorAction struct {
 	Params map[string]string
 }
 
-func loadImage(c echo.Context, url string, contentType string, body io.Reader) (image.Image, error) {
-	var image image.Image
+func loadImage(c echo.Context, url string, contentType string, body io.Reader, alternativeWidth int, alternativeHeight int) (image.Image, error) {
+	var img image.Image
 	var err error
 
 	c.Logger().Debugf("loadImage contentType=%s", contentType)
@@ -38,24 +41,60 @@ func loadImage(c echo.Context, url string, contentType string, body io.Reader) (
 	}
 
 	if contentType == "" {
-		return nil, fmt.Errorf("Content Type is missing and could not be inferred")
+		return nil, fmt.Errorf("content Type is missing and could not be inferred")
 	}
 
 	if contentType == "image/jpg" || contentType == "image/jpeg" {
-		image, err = jpeg.Decode(body)
+		img, err = jpeg.Decode(body)
 	} else if contentType == "image/png" {
-		image, err = png.Decode(body)
+		img, err = png.Decode(body)
 	} else if contentType == "image/webp" {
-		image, err = webp.Decode(body)
+		img, err = webp.Decode(body)
+	} else if contentType == "image/svg+xml" {
+		var svgImg *oksvg.SvgIcon
+		svgImg, err = oksvg.ReadIconStream(body)
+		w := int(svgImg.ViewBox.W)
+		h := int(svgImg.ViewBox.H)
+
+		ratio := math.Max(float64(w), float64(h)) / math.Min(float64(w), float64(h))
+		widthBigger := w > h
+
+		if alternativeHeight == -1 && alternativeWidth == -1 {
+			// Keep the original width and height
+		} else if alternativeHeight == -1 {
+			w = alternativeWidth
+			if widthBigger {
+				h = int(float64(w) / ratio)
+			} else {
+				h = int(float64(w) * ratio)
+			}
+		} else if alternativeWidth == -1 {
+			h = alternativeHeight
+			if widthBigger {
+				w = int(float64(h) * ratio)
+			} else {
+				w = int(float64(h) / ratio)
+			}
+		} else {
+			h = alternativeHeight
+			w = alternativeWidth
+		}
+
+		svgImg.SetTarget(0, 0, float64(w), float64(h))
+
+		var tempImg *image.RGBA64 = image.NewRGBA64(image.Rect(0, 0, w, h))
+		svgImg.Draw(rasterx.NewDasher(w, h, rasterx.NewScannerGV(w, h, tempImg, tempImg.Bounds())), 1)
+
+		img = tempImg
 	} else {
-		return nil, fmt.Errorf("Unknown content type '%s'", contentType)
+		return nil, fmt.Errorf("unknown content type '%s'", contentType)
 	}
 
 	if err != nil {
 		return nil, err
 	}
 
-	return image, nil
+	return img, nil
 }
 
 func parseManipulators(c echo.Context) []*manipulatorAction {
@@ -182,6 +221,17 @@ func HandleImage(c echo.Context) error {
 	rawRequestPath := c.Path()
 	path := rawRequestPath[0:strings.Index(rawRequestPath, "/:url")]
 
+	var alternateWidth int = -1
+	var alternateHeight int = -1
+	alternateBoundsExists := strings.Index(imageURL, "|")
+	if alternateBoundsExists > -1 {
+		tempBounds := imageURL[alternateBoundsExists+1:]
+		bounds := strings.Split(tempBounds, ",")
+		alternateWidth, _ = strconv.Atoi(bounds[0])
+		alternateHeight, _ = strconv.Atoi(bounds[1])
+		imageURL = imageURL[:alternateBoundsExists]
+	}
+
 	fetcher := fetchers.GetFetcherByPath(path)
 	if fetcher == nil {
 		c.Logger().Errorf("No fetcher is defined for specified path")
@@ -196,14 +246,14 @@ func HandleImage(c echo.Context) error {
 	}
 
 	if imageBody == nil {
-		return c.String(http.StatusNotFound, fmt.Sprintf("File not found"))
+		return c.String(http.StatusNotFound, "file not found")
 	}
 
 	c.Logger().Debugf("Image Content-Type=%s   url=%s", contentType, imageURL)
 
 	var img image.Image
-	if img, err = loadImage(c, imageURL, contentType, imageBody); err != nil {
-		return c.String(http.StatusInternalServerError, fmt.Sprintf("Failed to load fetched image. url=%s", imageURL))
+	if img, err = loadImage(c, imageURL, contentType, imageBody, alternateWidth, alternateHeight); err != nil {
+		return c.String(http.StatusInternalServerError, fmt.Sprintf("failed to load fetched image. url=%s", imageURL))
 	}
 
 	m := parseManipulators(c)
@@ -214,7 +264,7 @@ func HandleImage(c echo.Context) error {
 		if manipulator != nil {
 			c.Logger().Debugf("Executing Manipulator - %s", action.Name)
 			if img, err = manipulator.Execute(c, action.Params, img); err != nil {
-				return c.String(http.StatusInternalServerError, fmt.Sprintf("Failed to execute manipulator '%s'. Reason: %v", action.Name, err))
+				return c.String(http.StatusInternalServerError, fmt.Sprintf("failed to execute manipulator '%s'. Reason: %v", action.Name, err))
 			}
 		}
 	}

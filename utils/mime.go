@@ -13,6 +13,8 @@ func GetMimeTypeByFileExt(url string) string {
 		return "image/png"
 	} else if fileExt == "webp" {
 		return "image/webp"
+	} else if fileExt == "svg" {
+		return "image/svg+xml"
 	}
 
 	return ""
