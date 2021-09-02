@@ -1,6 +1,6 @@
 package handlers
 
-import "github.com/labstack/echo"
+import "github.com/labstack/echo/v4"
 
 // HandleHealth is the health check response
 func HandleHealth(c echo.Context) error {

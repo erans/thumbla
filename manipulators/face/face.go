@@ -4,7 +4,7 @@ import (
 	"image"
 
 	"github.com/erans/thumbla/config"
-	"github.com/labstack/echo"
+	"github.com/labstack/echo/v4"
 )
 
 // Detector provides a single interface to access various facial recognition APIs

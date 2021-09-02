@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/erans/thumbla/utils"
-	"github.com/labstack/echo"
+	"github.com/labstack/echo/v4"
 )
 
 // LocalFetcher fetches content from http/https sources

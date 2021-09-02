@@ -13,7 +13,7 @@ import (
 	"google.golang.org/api/option"
 
 	"github.com/erans/thumbla/utils"
-	"github.com/labstack/echo"
+	"github.com/labstack/echo/v4"
 )
 
 const (

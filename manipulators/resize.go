@@ -9,7 +9,7 @@ import (
 	"github.com/anthonynsimon/bild/transform"
 	"github.com/erans/thumbla/config"
 	"github.com/erans/thumbla/utils"
-	"github.com/labstack/echo"
+	"github.com/labstack/echo/v4"
 )
 
 // ResizeManipulator resizes the image based on given parameters. If only 1 parameter is given, proportions are saved

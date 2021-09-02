@@ -17,7 +17,7 @@ import (
 	"github.com/erans/thumbla/cache"
 	"github.com/erans/thumbla/config"
 	"github.com/erans/thumbla/manipulators/face"
-	"github.com/labstack/echo"
+	"github.com/labstack/echo/v4"
 )
 
 // FaceCropManipulator crops the image in a smart way to include most of the faces in the image

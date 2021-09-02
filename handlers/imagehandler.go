@@ -14,7 +14,7 @@ import (
 	"golang.org/x/image/webp"
 
 	//guetzli "github.com/chai2010/guetzli-go"
-	"github.com/labstack/echo"
+	"github.com/labstack/echo/v4"
 
 	"github.com/erans/thumbla/config"
 	"github.com/erans/thumbla/fetchers"
@@ -72,6 +72,12 @@ func parseManipulators(c echo.Context) []*manipulatorAction {
 	if p, err = url.QueryUnescape(p); err != nil {
 		return nil
 	}
+
+	// There are no manipulators on the URL
+	if p == "" {
+		return nil
+	}
+
 	var manipulatorsString = strings.Split(p, "/")
 
 	result = make([]*manipulatorAction, len(manipulatorsString))
@@ -173,7 +179,10 @@ func HandleImage(c echo.Context) error {
 	c.Logger().Debugf("Searching for fetcher for path: %s", c.Path())
 	c.Logger().Debugf("URL given: %s", parsedURL.String())
 
-	fetcher := fetchers.GetFetcherByPath(c.Path())
+	rawRequestPath := c.Path()
+	path := rawRequestPath[0:strings.Index(rawRequestPath, "/:url")]
+
+	fetcher := fetchers.GetFetcherByPath(path)
 	if fetcher == nil {
 		c.Logger().Errorf("No fetcher is defined for specified path")
 		return c.String(http.StatusBadRequest, "No fetcher is defined for specified path")

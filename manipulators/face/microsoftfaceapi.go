@@ -9,7 +9,7 @@ import (
 	"net/http"
 
 	"github.com/erans/thumbla/config"
-	"github.com/labstack/echo"
+	"github.com/labstack/echo/v4"
 )
 
 const (

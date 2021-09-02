@@ -29,3 +29,4 @@ vendor/
 bin/
 config-prod.yml
 config-dev.yml
+.vscode

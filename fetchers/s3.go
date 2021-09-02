@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/erans/thumbla/utils"
-	"github.com/labstack/echo"
+	"github.com/labstack/echo/v4"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"

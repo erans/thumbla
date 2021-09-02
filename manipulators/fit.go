@@ -6,7 +6,7 @@ import (
 	"strconv"
 
 	"github.com/erans/thumbla/config"
-	"github.com/labstack/echo"
+	"github.com/labstack/echo/v4"
 )
 
 // FitManipulator fits the image to the specified size

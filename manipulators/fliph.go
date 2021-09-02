@@ -5,7 +5,7 @@ import (
 
 	"github.com/anthonynsimon/bild/transform"
 	"github.com/erans/thumbla/config"
-	"github.com/labstack/echo"
+	"github.com/labstack/echo/v4"
 )
 
 // FlipHorizontalManipulator flips the image horizontally

@@ -4,7 +4,7 @@ import (
 	"io"
 
 	"github.com/erans/thumbla/config"
-	"github.com/labstack/echo"
+	"github.com/labstack/echo/v4"
 )
 
 // Fetcher interface handles fetching content from different sources
