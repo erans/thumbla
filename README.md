@@ -6,6 +6,25 @@ Written by Eran Sandler ([@erans](https://twitter.com/erans)) http://eran.sandle
 
 Thumbla is a micro service that fetches and manipulates images. It can securely fetch from remote locations that are not publicly available such as storage buckets and manipulate images in multiple ways.
 
+## Supported Image Formats:
+- **JPEG**
+- **PNG**
+- **WEBP**
+- **SVG**
+
+### Handling SVG
+While SVGs do contain some sizing information they are vector formats and can be scaled to any size.
+In order for Thumbla to correctly handle SVG files we need to rasterize it, basically converting it into a PNG, in order
+to further process it with all the manipulators available.
+
+To do that you can specify a size for the SVG that Thumbla will rasterize into by using this format:
+`https://example.com/i/pics/subpath_inside_bucket%2Fmyfile.svg|{W},{H}/output:f=jpg`
+
+Where `{W}` or `{H}` are the width and height pixel size of the raserized version of the SVG file.
+To perform relative scaling based on either width or height, send -1 to the unknown variable.
+For example, creating a scaled rasterized version of 300px width, send:
+`https://example.com/i/pics/subpath_inside_bucket%2Fmyfile.svg|300,-1/output:f=jpg`
+
 ## Supported Fetchers:
 - **Local** - fetch from a local directory on the server (the directory can also be mounted from a remote location and shared across servers)
 - **HTTP/S** - fetch from a remote HTTP/S server

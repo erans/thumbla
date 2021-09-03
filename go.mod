@@ -9,7 +9,6 @@ require (
 	github.com/anthonynsimon/bild v0.13.0
 	github.com/aws/aws-sdk-go v1.40.35
 	github.com/hashicorp/golang-lru v0.5.4
-	github.com/labstack/echo v3.3.10+incompatible
 	github.com/labstack/echo/v4 v4.5.0
 	github.com/labstack/gommon v0.3.0
 	github.com/srwiley/oksvg v0.0.0-20210519022825-9fc0c575d5fe // indirect
