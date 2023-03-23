@@ -6,6 +6,7 @@ require (
 	cloud.google.com/go/storage v1.30.1
 	github.com/anthonynsimon/bild v0.13.0
 	github.com/aws/aws-sdk-go v1.44.227
+	github.com/chai2010/webp v1.1.1
 	github.com/hashicorp/golang-lru/v2 v2.0.2
 	github.com/labstack/echo/v4 v4.10.2
 	github.com/labstack/gommon v0.4.0

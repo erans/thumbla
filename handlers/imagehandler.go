@@ -14,11 +14,11 @@ import (
 	"strconv"
 	"strings"
 
+	chaiwebp "github.com/chai2010/webp"
 	"github.com/srwiley/oksvg"
 	"github.com/srwiley/rasterx"
 	"golang.org/x/image/webp"
 
-	//guetzli "github.com/chai2010/guetzli-go"
 	"github.com/labstack/echo/v4"
 
 	"github.com/erans/thumbla/config"
@@ -186,13 +186,27 @@ func writeImageToResponse(c echo.Context, contentType string, img image.Image) e
 
 		if encoder == "jpeg" {
 			jpeg.Encode(c.Response().Writer, img, &jpeg.Options{Quality: quality})
-		} /* else if encoder == "guetzli" {
-			c.Logger().Info("Using guetzli")
-			guetzli.Encode(c.Response().Writer, img, &guetzli.Options{Quality: quality})
-		}*/
-
+		}
 	} else if contentType == "image/png" {
 		png.Encode(c.Response().Writer, img)
+	} else if contentType == "image/webp" {
+		var quality = 100
+		var tempQuality = c.Response().Header().Get("X-Quality")
+		if tempQuality != "" {
+			quality, _ = strconv.Atoi(tempQuality)
+		}
+		options := &chaiwebp.Options{Quality: float32(quality)}
+
+		var temp = c.Response().Header().Get("X-Lossless")
+		if temp != "" && (temp == "1" || temp == "true") {
+			options.Lossless = true
+		}
+
+		temp = c.Response().Header().Get("X-Exact")
+		if temp != "" && (temp == "1" || temp == "true") {
+			options.Exact = true
+		}
+		chaiwebp.Encode(c.Response().Writer, img, options)
 	} else {
 		return fmt.Errorf("write image to response failed. Unknown content type '%s'", contentType)
 	}

@@ -12,6 +12,7 @@ var formatContentTypeMapping = map[string]string{
 	"jpg":  "image/jpg",
 	"jpeg": "image/jpeg",
 	"png":  "image/png",
+	"webp": "image/webp",
 }
 
 // OutputManipulator sets the content-type that will be used as the output for the image processing format
@@ -24,9 +25,19 @@ func (manipulator *OutputManipulator) Execute(c echo.Context, params map[string]
 		if contentType, ok := formatContentTypeMapping[val]; ok {
 			c.Response().Header().Set("Content-Type", contentType)
 
-			if contentType == "image/jpeg" || contentType == "image/jpg" {
+			if contentType == "image/jpeg" || contentType == "image/jpg" || contentType == "image/webp" {
 				if val, ok := params["q"]; ok {
 					c.Response().Header().Set("X-Quality", val)
+				}
+			}
+
+			if contentType == "image/web" {
+				if val, ok := params["lossless"]; ok {
+					c.Response().Header().Set("X-Lossless", val)
+				}
+
+				if val, ok := params["exact"]; ok {
+					c.Response().Header().Set("X-Exact", val)
 				}
 			}
 
@@ -36,7 +47,6 @@ func (manipulator *OutputManipulator) Execute(c echo.Context, params map[string]
 					c.Response().Header().Set("X-Encoder", val)
 				}
 			}
-
 		} else {
 			return nil, fmt.Errorf("invalid or unsupported content type format '%s'", contentType)
 		}

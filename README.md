@@ -6,12 +6,17 @@ Written by Eran Sandler ([@erans](https://twitter.com/erans)) http://eran.sandle
 
 Thumbla is a micro service that fetches and manipulates images. It can securely fetch from remote locations that are not publicly available such as storage buckets and manipulate images in multiple ways.
 
-## Supported Image Formats:
+## Supported Read Image Formats:
 - **JPEG**
 - **PNG**
 - **WEBP**
 - **GIF** (read-only, single frame)
 - **SVG**
+
+## Supported Wrte Image Formats:
+- **JPEG**
+- **PNG**
+- **WEBP**
 
 ### Handling SVG
 While SVGs do contain some sizing information they are vector formats and can be scaled to any size.
