@@ -79,6 +79,7 @@ Fetched images can then be manipulated via manipulators such as:
 - **Shear Horizontally**
 - **Shear Vertically**
 - **Face Crop**
+- **Paste** - allows pasting (preferably PNG) images (initial support)
 
 ## Face Cropping
 Face cropping crops an image based on the faces visible in it while keeping the original image aspect ratio. Humans recognize and react to faces much more than any other objects. The face crop manipulator is a great way to generate thumbnails or focused images that will mostly show the faces in the picture.
@@ -164,7 +165,6 @@ The above configuration will mount `thumbla-config` map onto `/etc/config` insid
 
 ## What's still missing:
 - Additional security features for the various fetchers (support auth for HTTP/S requests)
-- Paste - paste another image on top an existing one
 - various images enhancements (brightness, contrast, levels adjustments etc)
 - Recipes - store complex image manipulation recipes and only pass input parameters
 - Crop manipulator doesn't parses "minus" values (to relative to the width or height) and percent values

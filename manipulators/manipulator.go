@@ -39,5 +39,6 @@ func InitManipulators(cfg *config.Config) {
 		"shearv":   NewShearVerticalManipulator(cfg),
 		"shearh":   NewShearHorizontalManipulator(cfg),
 		"facecrop": NewFaceCropManipulator(cfg),
+		"paste":    NewPasteManipulator(cfg),
 	}
 }
