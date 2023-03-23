@@ -123,7 +123,7 @@ func (m *FaceCropManipulator) Execute(c echo.Context, params map[string]string, 
 		}
 
 		c.Logger().Debugf("Faces: %v", faces)
-		if faces == nil || len(faces) < 0 {
+		if len(faces) == 0 {
 			return img, nil
 		}
 
@@ -239,8 +239,8 @@ func (m *FaceCropManipulator) Execute(c echo.Context, params map[string]string, 
 
 		if debug {
 			// Draw the bounding rectangle after padding
-			//m.drawRect(boundMin.X, boundMin.Y, boundMax.X, boundMax.Y, 4, color.RGBA{255, 0, 0, 255}, debugImage)
-			//m.addLabel(&debugImage, boundMin.X+10, boundMin.Y+20, color.RGBA{255, 0, 0, 255}, fmt.Sprintf("%dx%d - Final image to be cropped", boundWidth, boundHeight), true)
+			m.drawRect(boundMin.X, boundMin.Y, boundMax.X, boundMax.Y, 4, color.RGBA{255, 0, 0, 255}, debugImage)
+			m.addLabel(&debugImage, boundMin.X+10, boundMin.Y+20, color.RGBA{255, 0, 0, 255}, fmt.Sprintf("%dx%d - Final image to be cropped", boundWidth, boundHeight), true)
 		}
 
 		if !debug {

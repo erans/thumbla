@@ -1,8 +1,10 @@
 package handlers
 
 import (
+	"bytes"
 	"fmt"
 	"image"
+	"image/gif"
 	"image/jpeg"
 	"image/png"
 	"io"
@@ -50,6 +52,8 @@ func loadImage(c echo.Context, url string, contentType string, body io.Reader, a
 		img, err = png.Decode(body)
 	} else if contentType == "image/webp" {
 		img, err = webp.Decode(body)
+	} else if contentType == "image/gif" {
+		img, err = gif.Decode(body)
 	} else if contentType == "image/svg+xml" {
 		var svgImg *oksvg.SvgIcon
 		svgImg, err = oksvg.ReadIconStream(body)
@@ -108,9 +112,6 @@ func parseManipulators(c echo.Context) []*manipulatorAction {
 	var result []*manipulatorAction
 	var err error
 	var p = c.Param("*")
-	if p, err = url.QueryUnescape(p); err != nil {
-		return nil
-	}
 
 	// There are no manipulators on the URL
 	if p == "" {
@@ -147,6 +148,9 @@ func parseManipulators(c echo.Context) []*manipulatorAction {
 
 			if len(manipulatorParamsParts) > 1 {
 				manipulatorParamValue = manipulatorParamsParts[1]
+				if manipulatorParamValue, err = url.QueryUnescape(manipulatorParamValue); err != nil {
+					return nil
+				}
 			}
 
 			c.Logger().Debugf("%s=%s", manipulatorParamName, manipulatorParamValue)
@@ -196,6 +200,17 @@ func writeImageToResponse(c echo.Context, contentType string, img image.Image) e
 	return nil
 }
 
+func getFileParams(imageURL string) (string, []string) {
+	if !strings.ContainsAny(imageURL, "|") {
+		return imageURL, nil
+	}
+
+	parts := strings.Split(imageURL, "|")
+	params := strings.Split(parts[1], ",")
+
+	return parts[0], params
+}
+
 // HandleImage is the image handler
 func HandleImage(c echo.Context) error {
 	c.Logger().Debugf("Path: %v", c.Path())
@@ -221,28 +236,48 @@ func HandleImage(c echo.Context) error {
 	rawRequestPath := c.Path()
 	path := rawRequestPath[0:strings.Index(rawRequestPath, "/:url")]
 
-	var alternateWidth int = -1
-	var alternateHeight int = -1
-	alternateBoundsExists := strings.Index(imageURL, "|")
-	if alternateBoundsExists > -1 {
-		tempBounds := imageURL[alternateBoundsExists+1:]
-		bounds := strings.Split(tempBounds, ",")
-		alternateWidth, _ = strconv.Atoi(bounds[0])
-		alternateHeight, _ = strconv.Atoi(bounds[1])
-		imageURL = imageURL[:alternateBoundsExists]
-	}
-
-	fetcher := fetchers.GetFetcherByPath(path)
-	if fetcher == nil {
-		c.Logger().Errorf("No fetcher is defined for specified path")
-		return c.String(http.StatusBadRequest, "No fetcher is defined for specified path")
-	}
-
 	var imageBody io.Reader
 	var contentType string
-	if imageBody, contentType, err = fetcher.Fetch(c, imageURL); err != nil {
-		c.Logger().Errorf("Failed to fetch image. Reason=%v   url=%s", err, imageURL)
-		return c.String(http.StatusInternalServerError, fmt.Sprintf("Failed to fetch image. url=%s", imageURL))
+
+	var alternateWidth int = -1
+	var alternateHeight int = -1
+	var params []string
+	var useFetchers = true
+
+	imageURL, params = getFileParams(imageURL)
+
+	if strings.HasSuffix(strings.ToLower(imageURL), ".svg") {
+		alternateWidth, _ = strconv.Atoi(params[0])
+		alternateHeight, _ = strconv.Atoi(params[1])
+	} else if imageURL == "_blank" {
+		if params[0] == "rgba" {
+			alternateWidth, _ = strconv.Atoi(params[1])
+			alternateHeight, _ = strconv.Atoi(params[2])
+
+			img := image.NewRGBA(image.Rectangle{image.Point{0, 0}, image.Point{alternateWidth, alternateHeight}})
+			buf := new(bytes.Buffer)
+			err := png.Encode(buf, img)
+			if err != nil {
+				return c.String(http.StatusBadRequest, "failed to create blank image")
+			}
+
+			imageBody = buf
+			contentType = "image/png"
+			useFetchers = false
+		}
+	}
+
+	if useFetchers {
+		fetcher := fetchers.GetFetcherByPath(path)
+		if fetcher == nil {
+			c.Logger().Errorf("No fetcher is defined for specified path")
+			return c.String(http.StatusBadRequest, "No fetcher is defined for specified path")
+		}
+
+		if imageBody, contentType, err = fetcher.Fetch(c, imageURL); err != nil {
+			c.Logger().Errorf("Failed to fetch image. Reason=%v   url=%s", err, imageURL)
+			return c.String(http.StatusInternalServerError, fmt.Sprintf("Failed to fetch image. url=%s", imageURL))
+		}
 	}
 
 	if imageBody == nil {

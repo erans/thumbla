@@ -29,7 +29,7 @@ func (manipulator *CropManipulator) Execute(c echo.Context, params map[string]st
 		y1, y1err := strconv.Atoi(parts[3])
 
 		if x0err != nil || y0err != nil || x1err != nil || y1err != nil {
-			return nil, fmt.Errorf("One of the crop rectangle (r) values is invalid")
+			return nil, fmt.Errorf("one of the crop rectangle (r) values is invalid")
 		}
 
 		rectangle := image.Rect(x0, y0, x1, y1)

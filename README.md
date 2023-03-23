@@ -10,6 +10,7 @@ Thumbla is a micro service that fetches and manipulates images. It can securely 
 - **JPEG**
 - **PNG**
 - **WEBP**
+- **GIF** (read-only, single frame)
 - **SVG**
 
 ### Handling SVG
@@ -25,11 +26,15 @@ To perform relative scaling based on either width or height, send -1 to the unkn
 For example, creating a scaled rasterized version of 300px width, send:
 `https://example.com/i/pics/subpath_inside_bucket%2Fmyfile.svg|300,-1/output:f=jpg`
 
+Without specifying a size, we will try to use the deafult SVG size which, in most cases, is small.
+
 ## Supported Fetchers:
 - **Local** - fetch from a local directory on the server (the directory can also be mounted from a remote location and shared across servers)
 - **HTTP/S** - fetch from a remote HTTP/S server
-- **[AWS S3](https://aws.amazon.com/s3/)** - fetch from an S3 bucket. Supports accessing a private S3 bucket.
-- **[Google Storage](https://cloud.google.com/storage/)** - fetch from a Google Storage bucket. Support accessing a private Google Storage bucket.
+- **[AWS S3](https://aws.amazon.com/s3/)** - fetch from an S3 bucket. Supports accessing a private S3 bucket that is not accessible to the world.
+- **[Google Storage](https://cloud.google.com/storage/)** - fetch from a Google Storage bucket. Support accessing a private Google Storage bucket that is not accessible to the world.
+
+With AWS S3 and Google Storage support you can allow access to only a specific folder within a private bucket.
 
 ### Fetchers Configuration
 - **Local** - fetches files from a locally accessible folder on the server
@@ -60,7 +65,7 @@ For example, creating a scaled rasterized version of 300px width, send:
   - **path** - will be used as a root path. If set you can use relataive paths when fetching images to manipulate
   - **projectId** - the project ID that is associated with that Google Storage bucket
   - **securitySource** - can be `background` if the machine running Thumbla has access to that (or all buckets), otherwise set to `file`
-  - **serviceAccountJSONFile** - a path to the service account JSON file that will allow access to the specified bucket. Only needed when *securitySource* is set to `background`
+  - **serviceAccountJSONFile** - a path to the service account JSON file that will allow access to the specified bucket. Only needed when *securitySource* is set to `file`
 
 
 ## Supported Manipulators

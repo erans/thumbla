@@ -2,6 +2,7 @@ package config
 
 import (
 	"io/ioutil"
+	"os"
 
 	yaml "gopkg.in/yaml.v2"
 )
@@ -83,6 +84,9 @@ func LoadConfig(configFile string) (*Config, error) {
 	if data, err = ioutil.ReadFile(configFile); err != nil {
 		return nil, err
 	}
+
+	// Expand envirovment variables defined in the config
+	data = []byte(os.ExpandEnv(string(data)))
 
 	var c Config
 	if err := yaml.Unmarshal([]byte(data), &c); err != nil {

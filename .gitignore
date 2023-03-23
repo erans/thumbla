@@ -30,3 +30,4 @@ bin/
 config-prod.yml
 config-dev.yml
 .vscode
+__debug_bin

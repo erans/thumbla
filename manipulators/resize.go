@@ -47,18 +47,18 @@ func (manipulator *ResizeManipulator) Execute(c echo.Context, params map[string]
 
 	if temp, ok = params["w"]; ok {
 		if width, err = strconv.ParseFloat(temp, 64); err != nil {
-			return nil, fmt.Errorf("Failed to convert width parameter")
+			return nil, fmt.Errorf("failed to convert width parameter")
 		}
 	}
 
 	if temp, ok = params["h"]; ok {
 		if height, err = strconv.ParseFloat(temp, 64); err != nil {
-			return nil, fmt.Errorf("Failed to convert height parameter")
+			return nil, fmt.Errorf("failed to convert height parameter")
 		}
 	}
 
 	if width < 0 && height < 0 {
-		return nil, fmt.Errorf("Both width and height are less than 0")
+		return nil, fmt.Errorf("both width and height are less than 0")
 	}
 
 	imgWidth := img.Bounds().Size().X

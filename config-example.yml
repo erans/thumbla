@@ -9,6 +9,12 @@
 # - gs - will fetch from a Google Storage bucket
 #   credentials will be provided here in this config or in the environment of the process/machine
 
+#
+# Envrionment variables
+# If you require to read values from the environment, use the following syntax:
+#
+# ${ENV_VAR_NAME}
+#
 debugLevel: debug
 fetchers:
   # openHTTPFetch will fetch any HTTP/S path
@@ -22,7 +28,7 @@ fetchers:
     # files from the specified URL. The username and password will be added
     # to any request using this fetcher
     username: user
-    password: pass
+    password: ${USER_PASS} # Read this user password from an environment variable
     # secure - true/false to force HTTPS URLs only
     secure: true
     # retrictHosts will only fetch URLs from the specified hosts

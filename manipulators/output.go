@@ -38,7 +38,7 @@ func (manipulator *OutputManipulator) Execute(c echo.Context, params map[string]
 			}
 
 		} else {
-			return nil, fmt.Errorf("Invalid or unsupported content type format '%s'", contentType)
+			return nil, fmt.Errorf("invalid or unsupported content type format '%s'", contentType)
 		}
 
 	}

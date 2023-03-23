@@ -1,14 +1,14 @@
 package cache
 
 import (
-	lru "github.com/hashicorp/golang-lru"
+	lru "github.com/hashicorp/golang-lru/v2/simplelru"
 
 	"github.com/erans/thumbla/config"
 )
 
 // InMemoryCache providers a generic in-memory LRU cache
 type InMemoryCache struct {
-	Cache *lru.Cache
+	Cache *lru.LRU[string, interface{}]
 }
 
 // Contains checks if a key exists in the cache
@@ -36,7 +36,7 @@ func (m *InMemoryCache) Clear() {
 
 // NewInMemoryCache returns a new instance of the in-memory LRU based cache
 func NewInMemoryCache(cfg *config.Config) *InMemoryCache {
-	if newCache, err := lru.New(cfg.Cache.InMemory.Size); err == nil {
+	if newCache, err := lru.NewLRU[string, interface{}]( cfg.Cache.InMemory.Size, nil); err == nil {
 		return &InMemoryCache{
 			Cache: newCache,
 		}

@@ -23,13 +23,13 @@ func (manipulator *FitManipulator) Execute(c echo.Context, params map[string]str
 	if v, ok := params["w"]; ok {
 		c.Logger().Debugf("Fit: W=%s", v)
 		if maxW, err = strconv.Atoi(v); err != nil {
-			return nil, fmt.Errorf("Invalid width (w) value")
+			return nil, fmt.Errorf("invalid width (w) value")
 		}
 	}
 
 	if v, ok := params["h"]; ok {
 		if maxH, err = strconv.Atoi(v); err != nil {
-			return nil, fmt.Errorf("Invalid height (h) value")
+			return nil, fmt.Errorf("invalid height (h) value")
 		}
 	}
 
@@ -42,7 +42,7 @@ func (manipulator *FitManipulator) Execute(c echo.Context, params map[string]str
 	srcH := srcBounds.Dy()
 
 	if srcW <= 0 || srcH <= 0 {
-		return nil, fmt.Errorf("Invalid width or height of source image")
+		return nil, fmt.Errorf("invalid width or height of source image")
 	}
 
 	srcRatio := float64(srcW) / float64(srcH)
