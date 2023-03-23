@@ -13,7 +13,7 @@ Thumbla is a micro service that fetches and manipulates images. It can securely 
 - **GIF** (read-only, single frame)
 - **SVG**
 
-## Supported Wrte Image Formats:
+## Supported Write Image Formats:
 - **JPEG**
 - **PNG**
 - **WEBP**
