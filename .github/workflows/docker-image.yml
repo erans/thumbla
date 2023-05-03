@@ -28,6 +28,6 @@ jobs:
     - name: Build Go binary
       run: go build -o bin/ -v ./...
     - name: Build the Docker image    
-      run: docker build . --file Dockerfile --tag thumbla:$(date +%s)
+      run: docker build . --file Dockerfile --tag erans/thumbla --tag thumbla:$(date +%s)
     - name: Docker push
       run: docker push ${{secrets.DOCKER_USER}}/thumbla
