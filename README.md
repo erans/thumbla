@@ -6,6 +6,8 @@ Written by Eran Sandler ([@erans](https://twitter.com/erans)) http://eran.sandle
 
 Thumbla is a micro service that fetches and manipulates images. It can securely fetch from remote locations that are not publicly available such as storage buckets and manipulate images in multiple ways.
 
+![badge](https://github.com/erans/thumbla/actions/workflows/docker-image.yml/badge.svg)
+
 ## Supported Read Image Formats:
 - **JPEG**
 - **PNG**
