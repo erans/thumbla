@@ -32,6 +32,16 @@ func (manipulator *CropManipulator) Execute(c echo.Context, params map[string]st
 			return nil, fmt.Errorf("one of the crop rectangle (r) values is invalid")
 		}
 
+		fmt.Printf("%d %d %d %d", x0, y0, x1, y1)
+
+		bounds := img.Bounds()
+		if x1 < 0 {
+			x1 = bounds.Max.X + x1
+		}
+		if y1 < 0 {
+			y1 = bounds.Max.Y + y1
+		}
+
 		rectangle := image.Rect(x0, y0, x1, y1)
 
 		return transform.Crop(img, rectangle), nil
