@@ -2,32 +2,32 @@ name: Docker Image CI
 
 on:
   push:
-    branches: [ "master" ]
+    branches: ["master"]
   pull_request:
-    branches: [ "master" ]
+    branches: ["master"]
 
 jobs:
-
   build:
-
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
-    - name: Setup Go environment
-      uses: actions/setup-go@v4.0.0
-      with:
-        go-version: 1.20.4
-        cache: true
-    - name: docker login
-      env:
-        DOCKER_USER: ${{secrets.DOCKER_USER}}
-        DOCKER_PASSWORD: ${{secrets.DOCKER_PASSWORD}}
-      run: |
-        docker login -u $DOCKER_USER -p $DOCKER_PASSWORD        
-    - name: Build Go binary
-      run: go build -o bin/ -v ./...
-    - name: Build the Docker image    
-      run: docker build . --file Dockerfile --tag erans/thumbla --tag thumbla:$(date +%s)
-    - name: Docker push
-      run: docker push ${{secrets.DOCKER_USER}}/thumbla
+      - uses: actions/checkout@v3
+      - name: Setup Go environment
+        uses: actions/setup-go@v4.0.0
+        with:
+          go-version: 1.21
+          cache: true
+      - name: docker login
+        env:
+          DOCKER_USER: ${{secrets.DOCKER_USER}}
+          DOCKER_PASSWORD: ${{secrets.DOCKER_PASSWORD}}
+        run: |
+          docker login -u $DOCKER_USER -p $DOCKER_PASSWORD
+      - name: Add webp
+        run: sudo apt-get install libwebp-dev
+      - name: Build Go binary
+        run: go build -o bin/ -v ./...
+      - name: Build the Docker image
+        run: docker build . --file Dockerfile --tag erans/thumbla --tag thumbla:$(date +%s)
+      - name: Docker push
+        run: docker push ${{secrets.DOCKER_USER}}/thumbla
