@@ -8,13 +8,15 @@ import (
 	"image/jpeg"
 	"image/png"
 	"io"
+	"log"
 	"math"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 
-	chaiwebp "github.com/chai2010/webp"
+	"github.com/kolesa-team/go-webp/encoder"
+	kolesawebp "github.com/kolesa-team/go-webp/webp"
 	"github.com/srwiley/oksvg"
 	"github.com/srwiley/rasterx"
 	"golang.org/x/image/webp"
@@ -190,12 +192,17 @@ func writeImageToResponse(c echo.Context, contentType string, img image.Image) e
 	} else if contentType == "image/png" {
 		png.Encode(c.Response().Writer, img)
 	} else if contentType == "image/webp" {
-		var quality = 100
+		var quality = 100.0
 		var tempQuality = c.Response().Header().Get("X-Quality")
 		if tempQuality != "" {
-			quality, _ = strconv.Atoi(tempQuality)
+			quality, _ = strconv.ParseFloat(tempQuality, 32)
 		}
-		options := &chaiwebp.Options{Quality: float32(quality)}
+		//options := &chaiwebp.Options{Quality: float32(quality)}
+
+		options, err := encoder.NewLossyEncoderOptions(encoder.PresetDefault, float32(quality))
+		if err != nil {
+			log.Fatalln(err)
+		}
 
 		var temp = c.Response().Header().Get("X-Lossless")
 		if temp != "" && (temp == "1" || temp == "true") {
@@ -204,9 +211,9 @@ func writeImageToResponse(c echo.Context, contentType string, img image.Image) e
 
 		temp = c.Response().Header().Get("X-Exact")
 		if temp != "" && (temp == "1" || temp == "true") {
-			options.Exact = true
+			options.Exact = 1
 		}
-		chaiwebp.Encode(c.Response().Writer, img, options)
+		kolesawebp.Encode(c.Response().Writer, img, options)
 	} else {
 		return fmt.Errorf("write image to response failed. Unknown content type '%s'", contentType)
 	}
