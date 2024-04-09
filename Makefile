@@ -11,17 +11,17 @@ default:
 	build
 
 build: ## Build the binary
-	go build -o ${BINFULLPATH}
+	go build -o ./bin/${BINARY}
 
 buildprod: ## Build the binary in production mode
-	CGO_ENABLED=0 GOOS=linux go build -a -o ./bin/${BINARY}
+	GOOS=linux go build -a -o ./bin/${BINARY}
 
 clean: ## Clean up
-	if [ -f ${BINFULLPATH} ] ; then rm ${BINFULLPATH} ; fi
+	if [ -f ${BINARY} ] ; then rm ${BINARY} ; fi
 
 buildimage: ## Build docker image
-	CGO_ENABLED=0 GOOS=linux go build -a -o ./bin/${BINARY}
-	docker build --no-cache=true --rm --tag thumbla .
+	GOOS=linux go build -a -o ./bin/${BINARY}
+	docker buildx build --tag thumbla --tag erans/thumbla .
 	rm -rf ./bin/
 
 run: ## Run in dev mode
