@@ -3,7 +3,7 @@ package fetchers
 import (
 	"bytes"
 	"io"
-	"io/ioutil"
+	"os"
 	"path"
 	"strings"
 
@@ -28,7 +28,8 @@ func (fetcher *LocalFetcher) Fetch(c echo.Context, url string) (io.Reader, strin
 
 	var buf []byte
 	var err error
-	if buf, err = ioutil.ReadFile(fileFullPath); err != nil {
+	buf, err = os.ReadFile(fileFullPath)
+	if err != nil {
 		return nil, "", err
 	}
 

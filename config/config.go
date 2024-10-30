@@ -1,7 +1,6 @@
 package config
 
 import (
-	"io/ioutil"
 	"os"
 
 	yaml "gopkg.in/yaml.v2"
@@ -47,7 +46,7 @@ type Config struct {
 			Address    string `yaml:"host"`
 			Password   string `yaml:"string"`
 			DB         int    `yaml:"db"`
-			MaxLRUSize int    `yaml:maxLRUSize`
+			MaxLRUSize int    `yaml:"maxLRUSize"`
 		} `yaml:"redis"`
 	} `yaml:"cache"`
 }
@@ -80,9 +79,8 @@ func (cfg *Config) GetPathConfigByPath(path string) *PathConfig {
 
 // LoadConfig loads the config file
 func LoadConfig(configFile string) (*Config, error) {
-	var data []byte
-	var err error
-	if data, err = ioutil.ReadFile(configFile); err != nil {
+	data, err := os.ReadFile(configFile)
+	if err != nil {
 		return nil, err
 	}
 

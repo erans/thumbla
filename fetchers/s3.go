@@ -2,6 +2,7 @@ package fetchers
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"net/url"
@@ -11,10 +12,10 @@ import (
 	"github.com/erans/thumbla/utils"
 	"github.com/labstack/echo/v4"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
 // S3Fetcher fetches content from an s3 bucket
@@ -26,7 +27,7 @@ type S3Fetcher struct {
 	SecretAccessKey string
 }
 
-var awsRegionRegExp, _ = regexp.Compile("s3-(.*)\\.amazonaws\\.com")
+var awsRegionRegExp, _ = regexp.Compile(`s3-(.*)\.amazonaws\.com`)
 
 func (fetcher *S3Fetcher) getBucketAndObjectKeyFromURL(c echo.Context, fileURL string) (string, string, string) {
 	if u, err := url.Parse(fileURL); err == nil {
@@ -82,43 +83,45 @@ func (fetcher *S3Fetcher) Fetch(c echo.Context, fileURL string) (io.Reader, stri
 	region, bucket, objectKey := fetcher.getBucketAndObjectKeyFromURL(c, fileURL)
 	c.Logger().Debugf("Region: %s   Bucket: %s  ObjectKey: %s", region, bucket, objectKey)
 
-	var sess *session.Session
-	var err error
-	sess, err = session.NewSession()
-	if err != nil {
-		return nil, "", fmt.Errorf("Failed to create S3 session")
-	}
-
 	if region == "" || bucket == "" || objectKey == "" {
-		return nil, "", fmt.Errorf("Failed to parse file URL. url=%s", fileURL)
+		return nil, "", fmt.Errorf("failed to parse file URL. url=%s", fileURL)
 	}
 
-	awsConfig := &aws.Config{Region: aws.String(region)}
+	cfg, err := config.LoadDefaultConfig(context.TODO(),
+		config.WithRegion(region),
+		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
+			fetcher.AccessKeyID,
+			fetcher.SecretAccessKey,
+			"",
+		)),
+	)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to load AWS config: %v", err)
+	}
 
-	svc := s3.New(sess, awsConfig)
+	client := s3.NewFromConfig(cfg)
 
-	params := &s3.GetObjectInput{
+	input := &s3.GetObjectInput{
 		Bucket: aws.String(bucket),
 		Key:    aws.String(objectKey),
 	}
 
-	// Get object info including its size
-	var s3obj *s3.GetObjectOutput
-	if s3obj, err = svc.GetObject(params); err != nil {
-		return nil, "", nil
+	output, err := client.GetObject(context.TODO(), input)
+	if err != nil {
+		return nil, "", err
 	}
 
 	// TODO: Currently we fetch the image to the memory. Consider adding protection to limit the max size
 
-	c.Logger().Debugf("Content Length: %d    Content-Type: %s", *s3obj.ContentLength, *s3obj.ContentType)
+	c.Logger().Debugf("Content Length: %d    Content-Type: %s", output.ContentLength, aws.ToString(output.ContentType))
 
-	buf := make([]byte, *s3obj.ContentLength)
-	downloader := s3manager.NewDownloaderWithClient(svc)
-	if _, err = downloader.Download(aws.NewWriteAtBuffer(buf), params); err == nil {
-		return bytes.NewReader(buf), *s3obj.ContentType, nil
+	buf := new(bytes.Buffer)
+	_, err = io.Copy(buf, output.Body)
+	if err != nil {
+		return nil, "", err
 	}
 
-	return nil, "", err
+	return bytes.NewReader(buf.Bytes()), aws.ToString(output.ContentType), nil
 }
 
 // GetName returns the name assigned to this fetcher that can be used in the 'paths' section

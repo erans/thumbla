@@ -34,6 +34,10 @@ func InitFetchers(cfg *config.Config) {
 				fetcher = NewS3Fetcher(fetcherCfgData)
 			case "gs":
 				fetcher = NewGoogleStroageFetcher(fetcherCfgData)
+			case "ds":
+				fetcher = NewDigitalOceanSpacesFetcher(fetcherCfgData)
+			case "r2":
+				fetcher = NewCloudflareR2Fetcher(fetcherCfgData)
 			}
 
 			fetcherRegistry[i] = fetcher
