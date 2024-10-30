@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/url"
 	"path"
 
@@ -37,7 +36,7 @@ type GoogleStroageFetcher struct {
 	ServiceAccountJSONFile string
 }
 
-func (fetcher *GoogleStroageFetcher) getBucketAndObjectKeyFromURL(c echo.Context, fileURL string) (string, string) {
+func (fetcher *GoogleStroageFetcher) getBucketAndObjectKeyFromURL(fileURL string) (string, string) {
 	if u, err := url.Parse(fileURL); err == nil {
 		return u.Host, u.Path
 	}
@@ -70,7 +69,7 @@ func (fetcher *GoogleStroageFetcher) Fetch(c echo.Context, url string) (io.Reade
 		return nil, "", err
 	}
 
-	var bucketName, objectKey = fetcher.getBucketAndObjectKeyFromURL(c, url)
+	var bucketName, objectKey = fetcher.getBucketAndObjectKeyFromURL(url)
 	if bucketName == "" || objectKey == "" {
 		c.Logger().Debugf("Failed to get bucket and object key from URL, assume this is a relative one")
 		bucketName = fetcher.Bucket
@@ -79,7 +78,7 @@ func (fetcher *GoogleStroageFetcher) Fetch(c echo.Context, url string) (io.Reade
 		c.Logger().Debugf("bucketName=%s objectKey=%s", bucketName, objectKey)
 
 		if bucketName == "" || objectKey == "" {
-			return nil, "", fmt.Errorf("Failed to parse file URL '%s'", url)
+			return nil, "", fmt.Errorf("failed to parse file URL '%s'", url)
 		}
 	}
 
@@ -87,7 +86,7 @@ func (fetcher *GoogleStroageFetcher) Fetch(c echo.Context, url string) (io.Reade
 
 	var bucket = client.Bucket(bucketName)
 	if bucket == nil {
-		return nil, "", fmt.Errorf("Failed to obtain access to bucket '%s'", bucketName)
+		return nil, "", fmt.Errorf("failed to obtain access to bucket '%s'", bucketName)
 	}
 	var obj *storage.ObjectHandle
 	var objAttrs *storage.ObjectAttrs
@@ -115,7 +114,7 @@ func (fetcher *GoogleStroageFetcher) Fetch(c echo.Context, url string) (io.Reade
 	defer reader.Close()
 
 	var buf []byte
-	if buf, err = ioutil.ReadAll(reader); err != nil {
+	if buf, err = io.ReadAll(reader); err != nil {
 		return nil, "", err
 	}
 
