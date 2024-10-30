@@ -40,6 +40,9 @@ Without specifying a size, we will try to use the deafult SVG size which, in mos
 - **HTTP/S** - fetch from a remote HTTP/S server
 - **[AWS S3](https://aws.amazon.com/s3/)** - fetch from an S3 bucket. Supports accessing a private S3 bucket that is not accessible to the world.
 - **[Google Storage](https://cloud.google.com/storage/)** - fetch from a Google Storage bucket. Support accessing a private Google Storage bucket that is not accessible to the world.
+- **[Azure Blob Storage](https://azure.microsoft.com/en-us/services/storage/blobs/)** - fetch from an Azure Blob Storage bucket. Support accessing a private Azure Blob Storage bucket that is not accessible to the world.
+- **[DigitalOcean Spaces](https://www.digitalocean.com/products/spaces/)** - fetch from a DigitalOcean Spaces bucket. Support accessing a private DigitalOcean Spaces bucket that is not accessible to the world.
+- **[Cloudflare R2](https://www.cloudflare.com/r2/)** - fetch from a Cloudflare R2 bucket. Support accessing a private Cloudflare R2 bucket that is not accessible to the world.
 
 With AWS S3 and Google Storage support you can allow access to only a specific folder within a private bucket.
 
@@ -74,6 +77,17 @@ With AWS S3 and Google Storage support you can allow access to only a specific f
   - **securitySource** - can be `background` if the machine running Thumbla has access to that (or all buckets), otherwise set to `file`
   - **serviceAccountJSONFile** - a path to the service account JSON file that will allow access to the specified bucket. Only needed when *securitySource* is set to `file`
 
+- **Azure Blob Storage** - fetches files from an Azure Blob Storage bucket
+  - **accountName** - the Azure Blob Storage account name
+  - **accountKey** - the Azure Blob Storage account key
+
+- **DigitalOcean Spaces** - fetches files from a DigitalOcean Spaces bucket
+  - **accessID** - the DigitalOcean Spaces access ID
+  - **secretKey** - the DigitalOcean Spaces secret key
+
+- **Cloudflare R2** - fetches files from a Cloudflare R2 bucket
+  - **accessKey** - the Cloudflare R2 access key
+  - **secretKey** - the Cloudflare R2 secret key
 
 ## Supported Manipulators
 Fetched images can then be manipulated via manipulators such as:
@@ -87,6 +101,8 @@ Fetched images can then be manipulated via manipulators such as:
 - **Shear Vertically**
 - **Face Crop**
 - **Paste** - allows pasting (preferably PNG) images (initial support)
+- **brightness** - adjust the brightness of the image
+- **contrast** - adjust the contrast of the image
 
 ## Face Cropping
 Face cropping crops an image based on the faces visible in it while keeping the original image aspect ratio. Humans recognize and react to faces much more than any other objects. The face crop manipulator is a great way to generate thumbnails or focused images that will mostly show the faces in the picture.
