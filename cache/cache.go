@@ -23,10 +23,11 @@ var cacheRegistry map[string]Cache
 
 // InitCache returns the currently active cache
 func InitCache(cfg *config.Config) {
-	if cacheRegistry == nil || len(cacheRegistry) == 0 {
+	if len(cacheRegistry) == 0 {
 		cacheRegistry = map[string]Cache{
 			CacheDummy:    NewDummyCache(cfg),
 			CacheInMemory: NewInMemoryCache(cfg),
+			CacheRedis:    NewRedisCache(cfg),
 		}
 	}
 
