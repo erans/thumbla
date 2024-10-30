@@ -44,9 +44,10 @@ type Config struct {
 			Size int `yaml:"size"`
 		} `yaml:"inmemory"`
 		Redis struct {
-			Host string `yaml:"host"`
-			Port int    `yaml:"port"`
-			DB   int    `yaml:"db"`
+			Address    string `yaml:"host"`
+			Password   string `yaml:"string"`
+			DB         int    `yaml:"db"`
+			MaxLRUSize int    `yaml:maxLRUSize`
 		} `yaml:"redis"`
 	} `yaml:"cache"`
 }
