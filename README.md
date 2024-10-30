@@ -1,39 +1,38 @@
-# Thumbla - Micro service for fetching & manipulating images
+# Thumbla: A Versatile Image Processing Microservice
 
-Written by Eran Sandler ([@erans](https://twitter.com/erans)) http://eran.sandler.co.il &copy; 2018
+Created by Eran Sandler ([@erans](https://twitter.com/erans)) | http://eran.sandler.co.il | &copy; 2018
 
 ![Thumbla](examples/img/thumbla-logo.png)
 
-Thumbla is a micro service that fetches and manipulates images. It can securely fetch from remote locations that are not publicly available such as storage buckets and manipulate images in multiple ways.
+Thumbla is a powerful microservice for image processing and manipulation. It provides secure access to images stored in private locations like cloud storage buckets, along with extensive image transformation capabilities.
 
-![badge](https://github.com/erans/thumbla/actions/workflows/docker-image.yml/badge.svg)
+![CI Status](https://github.com/erans/thumbla/actions/workflows/docker-image.yml/badge.svg)
 
-## Supported Read Image Formats:
-- **JPEG**
-- **PNG**
-- **WEBP**
-- **GIF** (read-only, single frame)
-- **SVG**
+## Input Image Format Support:
+- **JPEG/JPG** - Standard compressed image format
+- **PNG** - Lossless image format with transparency
+- **WEBP** - Modern efficient image format
+- **GIF** - Supports reading single frames
+- **SVG** - Vector graphics format
 
-## Supported Write Image Formats:
-- **JPEG**
-- **PNG**
-- **WEBP**
+## Output Image Format Support:
+- **JPEG/JPG** - Optimized lossy compression
+- **PNG** - High quality with alpha channel
+- **WEBP** - Next-gen image format
 
-### Handling SVG
-While SVGs do contain some sizing information they are vector formats and can be scaled to any size.
-In order for Thumbla to correctly handle SVG files we need to rasterize it, basically converting it into a PNG, in order
-to further process it with all the manipulators available.
+### SVG Processing
+SVG files are vector-based graphics that can be scaled to any dimensions. Since Thumbla needs to apply image manipulations, SVG files must first be rasterized (converted to PNG format).
 
-To do that you can specify a size for the SVG that Thumbla will rasterize into by using this format:
+To control the rasterization size, append dimensions to the SVG URL using this syntax:
 `https://example.com/i/pics/subpath_inside_bucket%2Fmyfile.svg|{W},{H}/output:f=jpg`
 
-Where `{W}` or `{H}` are the width and height pixel size of the raserized version of the SVG file.
-To perform relative scaling based on either width or height, send -1 to the unknown variable.
-For example, creating a scaled rasterized version of 300px width, send:
+The parameters `{W}` and `{H}` specify the width and height in pixels for the rasterized output. For proportional scaling, use -1 for the dimension you want automatically calculated. For example:
+
 `https://example.com/i/pics/subpath_inside_bucket%2Fmyfile.svg|300,-1/output:f=jpg`
 
-Without specifying a size, we will try to use the deafult SVG size which, in most cases, is small.
+This will rasterize the SVG at 300 pixels wide while maintaining the original aspect ratio.
+
+If no dimensions are specified, Thumbla will use the SVG's default size, which is typically quite small.
 
 ## Supported Fetchers:
 - **Local** - fetch from a local directory on the server (the directory can also be mounted from a remote location and shared across servers)
@@ -105,41 +104,45 @@ Fetched images can then be manipulated via manipulators such as:
 - **contrast** - adjust the contrast of the image
 
 ## Face Cropping
-Face cropping crops an image based on the faces visible in it while keeping the original image aspect ratio. Humans recognize and react to faces much more than any other objects. The face crop manipulator is a great way to generate thumbnails or focused images that will mostly show the faces in the picture.
+The face crop manipulator automatically detects and focuses on faces in images while preserving the original aspect ratio. Since faces naturally draw human attention more than other image elements, this feature excels at creating engaging thumbnails and focused images that highlight the people in your photos.
 
-Supported Facial Detection APIs:
+The following facial detection services are supported:
   - [AWS Rekognition](https://aws.amazon.com/rekognition/)
-  - [Google Vision API](https://cloud.google.com/vision/) (using the facial detection features)
+  - [Google Vision API](https://cloud.google.com/vision/) (facial detection capabilities)
   - [Azure Face API](https://azure.microsoft.com/en-us/services/cognitive-services/face/)
 
-Here is an example of how Face cropping detects faces (blue rectangles) and how it would crop these images (the yellow rectangle):<br/>
+Below is a demonstration of the face cropping process. The blue rectangles indicate detected faces, while the yellow rectangle shows the final crop area:<br/>
 
 ![Debugging Face Cropping](examples/img/facecrop-debug.jpg)
 
-The result would look like this:<br/>
+After cropping, the final image looks like this:<br/>
 ![Result Face Cropping](examples/img/facecrop-result.jpg)
 
-## Usage - Configuration
-See [`config-example.yml`](config-example.yml) for an example of the configuration.
+## Configuration Guide
+For a complete configuration example, refer to [`config-example.yml`](config-example.yml).
 
-The configuration file has 2 major sections:
-- `fetchers` where different sources of the images are defined. This will define all the necessary parameters needed to access a certain source. For example, credentials of accessing a bucket in the cloud, as well as various restrictions on fetching files from HTTP/S source.
+The configuration file consists of two main components:
+- `fetchers` - Defines the image source configurations. This section contains all required parameters for accessing different image sources, such as cloud storage credentials and HTTP/S access restrictions.
 
-- `paths` are the paths that will be accessible from this server. You can mix and match paths with fetches, allow a single server to fetch sources from different cloud services. Paths always end with a `/` (slash) as Thumbla automatically adds additional parts to it to be able to process requests.
+- `paths` - Specifies which URL paths are available on the server. You can configure multiple paths and map them to different fetchers, enabling a single server to retrieve images from various cloud services. All paths must end with a forward slash (`/`) since Thumbla appends additional URL segments for request processing.
 
 ## URL Structure
-Let's assume we have configured a path called `/i/pics/` using an AWS S3 fetcher. This will allow us to fetch files from a certain location inside an S3 bucket. Fetching the files would look like this:
-`https://example.com/i/pics/subpath_inside_bucket%2Fmyfile.jpg/output:f=jpg`
+The URL structure follows a pattern that combines the configured path, source file location, and any image manipulations. Here's how it works:
 
-`subpath_inside_bucket%2Fmyfile.jpg` is the URL encoded relative path inside the bucket (unencoded it looks like this: subpath_inside_bucket/myfile.jpg). If you are using an HTTP fetcher this can also be a full blown URL as long as it is URL encoded.
+For a basic image request with a configured path `/i/pics/` using an AWS S3 fetcher:
+`https://example.com/i/pics/path%2Fto%2Fimage.jpg/output:f=jpg`
 
-If we want to resize this image the URL would look like this:
-`https://example.com/i/pics/subpath_inside_bucket%2Fmyfile.jpg/resize:w=350/output:f=jpg`
+The middle segment contains the URL-encoded path to your image within the bucket. For example, `path%2Fto%2Fimage.jpg` represents `path/to/image.jpg`. When using an HTTP fetcher, this can be a complete URL (as long as it's properly encoded).
 
-We can mix and match different manipulators, for example:
-`https://example.com/i/pics/subpath_inside_bucket%2Fmyfile.jpg/rotate:a=35/resize:w=350/output:f=jpg`
+To apply image manipulations, add them as additional path segments:
 
-This will rotate the image 35 degrees and resize the result to a width of 350px keep the image aspect ratio and calculating the matching height.
+Single manipulation (resize to 350px width):
+`https://example.com/i/pics/path%2Fto%2Fimage.jpg/resize:w=350/output:f=jpg`
+
+Multiple manipulations (rotate then resize):
+`https://example.com/i/pics/path%2Fto%2Fimage.jpg/rotate:a=35/resize:w=350/output:f=jpg`
+
+In the last example, the image is first rotated 35 degrees, then resized to 350px width while maintaining the aspect ratio. Manipulators are applied in the order they appear in the URL.
 
 ## Running Under Kubernetes
 - The best way to run the mico service under Kubernetes with custom configuration is to update the configuration file as a configmap:
