@@ -171,8 +171,6 @@ The above configuration will mount `thumbla-config` map onto `/etc/config` insid
 
 
 ## What's still missing:
-- Additional security features for the various fetchers (support auth for HTTP/S requests)
-- various images enhancements (brightness, contrast, levels adjustments etc)
+- various images enhancements
 - Recipes - store complex image manipulation recipes and only pass input parameters
-- Crop manipulator doesn't parses percent values
-- Add fetcher support for Azure Storage and DigitalOcean Spaces
+
