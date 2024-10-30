@@ -29,16 +29,18 @@ func GetManipulatorByName(name string) Manipulator {
 func InitManipulators(cfg *config.Config) {
 	manipulatorsRegistry = map[string]Manipulator{
 		// transformation manipulators
-		"output":   NewOutputManipulator(cfg),
-		"rotate":   NewRotateManipulator(cfg),
-		"flipv":    NewFlipVerticalManipulator(cfg),
-		"fliph":    NewFlipHorizontalManipulator(cfg),
-		"resize":   NewResizeManipulator(cfg),
-		"fit":      NewFitManipulator(cfg),
-		"crop":     NewCropManipulator(cfg),
-		"shearv":   NewShearVerticalManipulator(cfg),
-		"shearh":   NewShearHorizontalManipulator(cfg),
-		"facecrop": NewFaceCropManipulator(cfg),
-		"paste":    NewPasteManipulator(cfg),
+		"output":     NewOutputManipulator(cfg),
+		"rotate":     NewRotateManipulator(cfg),
+		"flipv":      NewFlipVerticalManipulator(cfg),
+		"fliph":      NewFlipHorizontalManipulator(cfg),
+		"resize":     NewResizeManipulator(cfg),
+		"fit":        NewFitManipulator(cfg),
+		"crop":       NewCropManipulator(cfg),
+		"shearv":     NewShearVerticalManipulator(cfg),
+		"shearh":     NewShearHorizontalManipulator(cfg),
+		"facecrop":   NewFaceCropManipulator(cfg),
+		"paste":      NewPasteManipulator(cfg),
+		"contrast":   NewContrastManipulator(cfg),
+		"brightness": NewBrightnessManipulator(cfg),
 	}
 }
