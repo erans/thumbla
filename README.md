@@ -8,6 +8,12 @@ Thumbla is a powerful microservice for image processing and manipulation. It pro
 
 ![CI Status](https://github.com/erans/thumbla/actions/workflows/docker-image.yml/badge.svg)
 
+## DockerHub
+You can pull the latest Docker image from [DockerHub](https://hub.docker.com/r/erans/thumbla):
+```
+docker pull erans/thumbla:latest
+```
+
 ## Input Image Format Support:
 - **JPEG/JPG** - Standard compressed image format
 - **PNG** - Lossless image format with transparency
