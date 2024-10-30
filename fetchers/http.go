@@ -2,12 +2,14 @@ package fetchers
 
 import (
 	"bytes"
+	"compress/flate"
 	"compress/gzip"
 	"io"
-	"io/ioutil"
 	"net/http"
 
+	"github.com/andybalholm/brotli"
 	"github.com/erans/thumbla/utils"
+	"github.com/klauspost/compress/zstd"
 	"github.com/labstack/echo/v4"
 )
 
@@ -35,7 +37,12 @@ func (fetcher *HTTPFetcher) Fetch(c echo.Context, url string) (io.Reader, string
 	if request, err = http.NewRequest("GET", url, nil); err != nil {
 		return nil, "", err
 	}
-	request.Header.Add("Accept-Encoding", "gzip")
+	request.Header.Add("Accept-Encoding", "gzip, compress, br, zstd")
+
+	// Add basic auth if username and password are configured
+	if fetcher.UserName != "" || fetcher.Password != "" {
+		request.SetBasicAuth(fetcher.UserName, fetcher.Password)
+	}
 
 	if response, err = client.Do(request); err != nil {
 		return nil, "", err
@@ -43,19 +50,34 @@ func (fetcher *HTTPFetcher) Fetch(c echo.Context, url string) (io.Reader, string
 
 	defer response.Body.Close()
 
-	var reader io.ReadCloser
+	var reader io.Reader
 	switch response.Header.Get("Content-Encoding") {
 	case "gzip":
-		if reader, err = gzip.NewReader(response.Body); err != nil {
+		gzReader, err := gzip.NewReader(response.Body)
+		if err != nil {
 			return nil, "", err
 		}
-		defer reader.Close()
+		defer gzReader.Close()
+		reader = gzReader
+	case "br":
+		reader = brotli.NewReader(response.Body)
+		// No need for Close() for brotli reader
+	case "zstd":
+		zstdReader, err := zstd.NewReader(response.Body)
+		if err != nil {
+			return nil, "", err
+		}
+		defer zstdReader.Close()
+		reader = zstdReader
+	case "deflate":
+		reader = flate.NewReader(response.Body)
+		defer reader.(io.ReadCloser).Close()
 	default:
 		reader = response.Body
 	}
 
 	var buf []byte
-	if buf, err = ioutil.ReadAll(response.Body); err != nil {
+	if buf, err = io.ReadAll(reader); err != nil {
 		return nil, "", err
 	}
 
