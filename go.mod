@@ -1,6 +1,7 @@
 module github.com/erans/thumbla
 
 go 1.24
+
 toolchain go1.24.1
 
 require (
@@ -18,7 +19,7 @@ require (
 	github.com/kolesa-team/go-webp v1.0.4
 	github.com/labstack/echo/v4 v4.12.0
 	github.com/labstack/gommon v0.4.2
-	github.com/redis/go-redis/v9 v9.7.0
+	github.com/redis/go-redis/v9 v9.7.3
 	github.com/srwiley/oksvg v0.0.0-20221011165216-be6e8873101c
 	github.com/srwiley/rasterx v0.0.0-20220730225603-2ab79fcdd4ef
 	golang.org/x/image v0.19.0
