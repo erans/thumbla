@@ -40,9 +40,10 @@ func TestHTTPFetcher(t *testing.T) {
 
 	// Create fetcher config
 	config := map[string]interface{}{
-		"name":          "testHTTP",
-		"type":          "http",
-		"restrictHosts": []interface{}{server.URL[7:]}, // Remove http:// prefix
+		"name":                  "testHTTP",
+		"type":                  "http",
+		"restrictHosts":         []interface{}{server.URL[7:]}, // Remove http:// prefix
+		"disableSSRFProtection": true,                          // Allow localhost for testing
 	}
 
 	fetcher := NewHTTPFetcher(config)
@@ -126,9 +127,10 @@ func TestHTTPFetcher_RestrictPaths(t *testing.T) {
 
 	// Create fetcher config with path restrictions
 	config := map[string]interface{}{
-		"name":          "testHTTP",
-		"type":          "http",
-		"restrictPaths": []interface{}{"/allowed/"},
+		"name":                  "testHTTP",
+		"type":                  "http",
+		"restrictPaths":         []interface{}{"/allowed/"},
+		"disableSSRFProtection": true, // Allow localhost for testing
 	}
 
 	fetcher := NewHTTPFetcher(config)

@@ -29,9 +29,10 @@ type HTTPFetcher struct {
 	UserName string
 	Password string
 
-	Secure        bool
-	RestrictHosts []string
-	RestrictPaths []string
+	Secure                 bool
+	RestrictHosts          []string
+	RestrictPaths          []string
+	DisableSSRFProtection  bool
 }
 
 // isPrivateOrLocalIP checks if an IP address is private, localhost, or link-local
@@ -94,24 +95,27 @@ func (fetcher *HTTPFetcher) Fetch(c *fiber.Ctx, fetchURL string) (io.Reader, str
 	}
 
 	// SSRF Protection: Resolve hostname to IP and check for private/local addresses
-	host := parsedURL.Hostname()
-	port := parsedURL.Port()
+	// Skip SSRF protection if disabled (for testing)
+	if !fetcher.DisableSSRFProtection {
+		host := parsedURL.Hostname()
+		port := parsedURL.Port()
 
-	// Check for dangerous ports
-	if port != "" && isDangerousPort(port) {
-		return nil, "", fmt.Errorf("access to port %s is not allowed for security reasons", port)
-	}
+		// Check for dangerous ports
+		if port != "" && isDangerousPort(port) {
+			return nil, "", fmt.Errorf("access to port %s is not allowed for security reasons", port)
+		}
 
-	// Resolve hostname to IP addresses
-	ips, err := net.LookupIP(host)
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to resolve hostname %s: %w", host, err)
-	}
+		// Resolve hostname to IP addresses
+		ips, err := net.LookupIP(host)
+		if err != nil {
+			return nil, "", fmt.Errorf("failed to resolve hostname %s: %w", host, err)
+		}
 
-	// Check if any resolved IP is private or local
-	for _, ip := range ips {
-		if isPrivateOrLocalIP(ip) {
-			return nil, "", fmt.Errorf("access to private/local IP %s (resolved from %s) is not allowed for security reasons", ip.String(), host)
+		// Check if any resolved IP is private or local
+		for _, ip := range ips {
+			if isPrivateOrLocalIP(ip) {
+				return nil, "", fmt.Errorf("access to private/local IP %s (resolved from %s) is not allowed for security reasons", ip.String(), host)
+			}
 		}
 	}
 
@@ -272,13 +276,21 @@ func NewHTTPFetcher(cfg map[string]interface{}) *HTTPFetcher {
 		}
 	}
 
+	var disableSSRFProtection bool
+	if disableSSRFInterface, ok := cfg["disableSSRFProtection"]; ok {
+		if disableSSRF, ok := disableSSRFInterface.(bool); ok {
+			disableSSRFProtection = disableSSRF
+		}
+	}
+
 	return &HTTPFetcher{
-		Name:          utils.SafeCastToString(name),
-		FetcherType:   "http",
-		UserName:      utils.SafeCastToString(username),
-		Password:      utils.SafeCastToString(password),
-		Secure:        secure,
-		RestrictHosts: restrictHosts,
-		RestrictPaths: restrictPaths,
+		Name:                  utils.SafeCastToString(name),
+		FetcherType:           "http",
+		UserName:              utils.SafeCastToString(username),
+		Password:              utils.SafeCastToString(password),
+		Secure:                secure,
+		RestrictHosts:         restrictHosts,
+		RestrictPaths:         restrictPaths,
+		DisableSSRFProtection: disableSSRFProtection,
 	}
 }
