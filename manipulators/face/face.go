@@ -4,12 +4,12 @@ import (
 	"image"
 
 	"github.com/erans/thumbla/config"
-	"github.com/labstack/echo/v4"
+	"github.com/gofiber/fiber/v2"
 )
 
 // Detector provides a single interface to access various facial recognition APIs
 type Detector interface {
-	Detect(c echo.Context, cfg *config.Config, params map[string]string, img image.Image) ([]image.Rectangle, error)
+	Detect(c *fiber.Ctx, cfg *config.Config, params map[string]string, img image.Image) ([]image.Rectangle, error)
 }
 
 var detectorRegistry = map[string]Detector{

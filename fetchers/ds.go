@@ -10,7 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/erans/thumbla/utils"
-	"github.com/labstack/echo/v4"
+	"github.com/gofiber/fiber/v2"
 )
 
 // DigitalOceanSpacesFetcher implements Fetcher interface for DigitalOcean Spaces
@@ -43,7 +43,7 @@ func NewDigitalOceanSpacesFetcher(cfg map[string]interface{}) *DigitalOceanSpace
 }
 
 // Fetch downloads an object from DigitalOcean Spaces
-func (f *DigitalOceanSpacesFetcher) Fetch(c echo.Context, path string) (io.Reader, string, error) {
+func (f *DigitalOceanSpacesFetcher) Fetch(c *fiber.Ctx, path string) (io.Reader, string, error) {
 	customResolver := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
 		return aws.Endpoint{
 			URL: f.endpoint,

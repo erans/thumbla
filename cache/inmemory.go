@@ -36,7 +36,13 @@ func (m *InMemoryCache) Clear() {
 
 // NewInMemoryCache returns a new instance of the in-memory LRU based cache
 func NewInMemoryCache(cfg *config.Config) *InMemoryCache {
-	if newCache, err := lru.NewLRU[string, interface{}](cfg.Cache.InMemory.Size, nil); err == nil {
+	// Enforce reasonable cache size limits for security
+	cacheSize := cfg.Cache.InMemory.Size
+	if cacheSize <= 0 {
+		cacheSize = 1000 // Default to 1,000 cache entries
+	}
+
+	if newCache, err := lru.NewLRU[string, interface{}](cacheSize, nil); err == nil {
 		return &InMemoryCache{
 			Cache: newCache,
 		}

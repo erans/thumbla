@@ -5,11 +5,12 @@ import (
 	"image"
 
 	"github.com/erans/thumbla/config"
-	"github.com/labstack/echo/v4"
+	"github.com/erans/thumbla/middleware"
+	"github.com/gofiber/fiber/v2"
 )
 
 var formatContentTypeMapping = map[string]string{
-	"jpg":  "image/jpg",
+	"jpg":  "image/jpeg",
 	"jpeg": "image/jpeg",
 	"png":  "image/png",
 	"webp": "image/webp",
@@ -20,35 +21,48 @@ type OutputManipulator struct {
 }
 
 // Execute runs the output format manipulator, setting the content-type that will be used to save the resulting image
-func (manipulator *OutputManipulator) Execute(c echo.Context, params map[string]string, img image.Image) (image.Image, error) {
+func (manipulator *OutputManipulator) Execute(c *fiber.Ctx, params map[string]string, img image.Image) (image.Image, error) {
 	if val, ok := params["f"]; ok {
 		if contentType, ok := formatContentTypeMapping[val]; ok {
-			c.Response().Header().Set("Content-Type", contentType)
+			if c != nil {
+				c.Set("Content-Type", contentType)
+			}
 
 			if contentType == "image/jpeg" || contentType == "image/jpg" || contentType == "image/webp" {
 				if val, ok := params["q"]; ok {
-					c.Response().Header().Set("X-Quality", val)
+					if c != nil {
+						c.Set("X-Quality", val)
+					}
 				}
 			}
 
 			if contentType == "image/web" {
 				if val, ok := params["lossless"]; ok {
-					c.Response().Header().Set("X-Lossless", val)
+					if c != nil {
+						c.Set("X-Lossless", val)
+					}
 				}
 
 				if val, ok := params["exact"]; ok {
-					c.Response().Header().Set("X-Exact", val)
+					if c != nil {
+						c.Set("X-Exact", val)
+					}
 				}
 			}
 
 			if val, ok := params["e"]; ok {
-				c.Logger().Debugf("Encoder: %s", val)
+				if c != nil {
+				logger := middleware.GetLoggerFromContext(c)
+				logger.Debug().Str("encoder", val).Msg("Setting encoder")
+			}
 				if val == "guetzli" {
-					c.Response().Header().Set("X-Encoder", val)
+					if c != nil {
+						c.Set("X-Encoder", val)
+					}
 				}
 			}
 		} else {
-			return nil, fmt.Errorf("invalid or unsupported content type format '%s'", contentType)
+			return nil, fmt.Errorf("invalid or unsupported content type format '%s'", val)
 		}
 
 	}

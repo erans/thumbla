@@ -5,12 +5,13 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"net/url"
 	"regexp"
 	"strings"
 
 	"github.com/erans/thumbla/utils"
-	"github.com/labstack/echo/v4"
+	"github.com/gofiber/fiber/v2"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -29,7 +30,7 @@ type S3Fetcher struct {
 
 var awsRegionRegExp, _ = regexp.Compile(`s3-(.*)\.amazonaws\.com`)
 
-func (fetcher *S3Fetcher) getBucketAndObjectKeyFromURL(c echo.Context, fileURL string) (string, string, string) {
+func (fetcher *S3Fetcher) getBucketAndObjectKeyFromURL(c *fiber.Ctx, fileURL string) (string, string, string) {
 	if u, err := url.Parse(fileURL); err == nil {
 		// Parse the following format:
 		// - http://s3-aws-region.amazonaws.com/bucket/path/file  i.e. http://s3-us-west-2.amazonaws.com/mybucket/path/file
@@ -38,20 +39,20 @@ func (fetcher *S3Fetcher) getBucketAndObjectKeyFromURL(c echo.Context, fileURL s
 		var match = awsRegionRegExp.FindStringSubmatch(u.Host)
 		if len(match) > 1 {
 			region = match[1]
-			c.Logger().Debugf("Found region in URL '%s'", region)
+			log.Printf("Found region in URL '%s'", region)
 		}
 
 		if region == "" {
 			// If we couldn't get a region, assume the default configured region should be used
 			region = fetcher.Region
-			c.Logger().Debugf("No region found, using default '%s'", fetcher.Region)
+			log.Printf("No region found, using default '%s'", fetcher.Region)
 		}
 
 		var bucket string
 		var objectKey string
 
 		parts := strings.Split(u.Path, "/")
-		c.Logger().Debugf("URL parts: %v", parts)
+		log.Printf("URL parts: %v", parts)
 
 		// The minimum would be /bucket/file which would translate into an array
 		// with 0 == empty string, 1 == bucket and 2 == file
@@ -77,11 +78,11 @@ func (fetcher *S3Fetcher) getBucketAndObjectKeyFromURL(c echo.Context, fileURL s
 //
 // If you are accessing an S3 file that is accessible via anonymous direct HTTP/S
 // consider using the http fetcher.
-func (fetcher *S3Fetcher) Fetch(c echo.Context, fileURL string) (io.Reader, string, error) {
-	c.Logger().Debugf("Fetching from S3: %s", fileURL)
+func (fetcher *S3Fetcher) Fetch(c *fiber.Ctx, fileURL string) (io.Reader, string, error) {
+	log.Printf("Fetching from S3: %s", fileURL)
 
 	region, bucket, objectKey := fetcher.getBucketAndObjectKeyFromURL(c, fileURL)
-	c.Logger().Debugf("Region: %s   Bucket: %s  ObjectKey: %s", region, bucket, objectKey)
+	log.Printf("Region: %s   Bucket: %s  ObjectKey: %s", region, bucket, objectKey)
 
 	if region == "" || bucket == "" || objectKey == "" {
 		return nil, "", fmt.Errorf("failed to parse file URL. url=%s", fileURL)
@@ -113,7 +114,7 @@ func (fetcher *S3Fetcher) Fetch(c echo.Context, fileURL string) (io.Reader, stri
 
 	// TODO: Currently we fetch the image to the memory. Consider adding protection to limit the max size
 
-	c.Logger().Debugf("Content Length: %d    Content-Type: %s", output.ContentLength, aws.ToString(output.ContentType))
+	log.Printf("Content Length: %d    Content-Type: %s", output.ContentLength, aws.ToString(output.ContentType))
 
 	buf := new(bytes.Buffer)
 	_, err = io.Copy(buf, output.Body)

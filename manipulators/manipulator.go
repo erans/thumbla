@@ -4,12 +4,12 @@ import (
 	"image"
 
 	"github.com/erans/thumbla/config"
-	"github.com/labstack/echo/v4"
+	"github.com/gofiber/fiber/v2"
 )
 
 // Manipulator interface
 type Manipulator interface {
-	Execute(c echo.Context, params map[string]string, img image.Image) (image.Image, error)
+	Execute(c *fiber.Ctx, params map[string]string, img image.Image) (image.Image, error)
 }
 
 var manipulatorsRegistry map[string]Manipulator

@@ -1,0 +1,33 @@
+debugLevel: debug
+cacheControlHeader: "public, max-age=3600"
+
+fetchers:
+  - name: testLocal
+    type: local
+    path: /tmp/thumbla-test
+
+  - name: testHTTP
+    type: http
+    secure: false
+    restrictHosts:
+      - httpbin.org
+      - localhost
+
+paths:
+  - path: "/test/"
+    fetcherName: testLocal
+    cacheControl: "public, max-age=7200"
+
+  - path: "/http/"
+    fetcherName: testHTTP
+
+faceapi:
+  defaultProvider: "aws"
+  awsRekognition:
+    region: "us-east-1"
+
+cache:
+  active: false
+  provider: "inmemory"
+  inmemory:
+    size: 100

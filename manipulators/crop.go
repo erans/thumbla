@@ -8,15 +8,48 @@ import (
 
 	"github.com/anthonynsimon/bild/transform"
 	"github.com/erans/thumbla/config"
-	"github.com/labstack/echo/v4"
+	"github.com/gofiber/fiber/v2"
 )
 
 // CropManipulator crops the image
 type CropManipulator struct {
 }
 
-// Execute runs the flip horizontal manipulator and flips the image horizontally
-func (manipulator *CropManipulator) Execute(c echo.Context, params map[string]string, img image.Image) (image.Image, error) {
+// Execute runs the crop manipulator and crops the image
+func (manipulator *CropManipulator) Execute(c *fiber.Ctx, params map[string]string, img image.Image) (image.Image, error) {
+	// Handle x, y, w, h parameters (standard crop)
+	if x, hasX := params["x"]; hasX {
+		y, hasY := params["y"]
+		w, hasW := params["w"]
+		h, hasH := params["h"]
+
+		if !hasY || !hasW || !hasH {
+			return img, fmt.Errorf("crop requires x, y, w, h parameters")
+		}
+
+		xVal, xerr := strconv.Atoi(x)
+		yVal, yerr := strconv.Atoi(y)
+		wVal, werr := strconv.Atoi(w)
+		hVal, herr := strconv.Atoi(h)
+
+		if xerr != nil || yerr != nil || werr != nil || herr != nil {
+			return img, fmt.Errorf("invalid crop parameters: must be integers")
+		}
+
+		// Validate bounds
+		bounds := img.Bounds()
+		if xVal < 0 || yVal < 0 || wVal <= 0 || hVal <= 0 {
+			return img, fmt.Errorf("invalid crop parameters: negative or zero values")
+		}
+		if xVal+wVal > bounds.Max.X || yVal+hVal > bounds.Max.Y {
+			return img, fmt.Errorf("crop area exceeds image bounds")
+		}
+
+		rectangle := image.Rect(xVal, yVal, xVal+wVal, yVal+hVal)
+		return transform.Crop(img, rectangle), nil
+	}
+
+	// Handle r parameter (legacy rectangle format)
 	if r, ok := params["r"]; ok {
 		parts := strings.Split(r, "|")
 

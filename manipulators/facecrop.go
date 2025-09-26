@@ -5,6 +5,7 @@ import (
 	"image"
 	"image/color"
 	"image/draw"
+	"log"
 	"math"
 	"net/url"
 	"strconv"
@@ -17,7 +18,7 @@ import (
 	"github.com/erans/thumbla/cache"
 	"github.com/erans/thumbla/config"
 	"github.com/erans/thumbla/manipulators/face"
-	"github.com/labstack/echo/v4"
+	"github.com/gofiber/fiber/v2"
 )
 
 // FaceCropManipulator crops the image in a smart way to include most of the faces in the image
@@ -68,7 +69,7 @@ func (m *FaceCropManipulator) addLabel(img *image.RGBA, x, y int, col color.RGBA
 }
 
 // Execute runs the fit manipulator and fits the image to the specified size
-func (m *FaceCropManipulator) Execute(c echo.Context, params map[string]string, img image.Image) (image.Image, error) {
+func (m *FaceCropManipulator) Execute(c *fiber.Ctx, params map[string]string, img image.Image) (image.Image, error) {
 	var debugImage image.RGBA
 	var debug = false
 	if val, ok := params["debug"]; ok {
@@ -94,12 +95,12 @@ func (m *FaceCropManipulator) Execute(c echo.Context, params map[string]string, 
 		provider = p
 	}
 
-	c.Logger().Debugf("Try to find detection for provider '%s'", provider)
+	log.Printf("Try to find detection for provider '%s'", provider)
 	if detector := face.GetDetectorByName(provider); detector != nil {
 		var err error
 		var faces []image.Rectangle
 
-		var imageURL, _ = url.QueryUnescape(c.Param("url"))
+		var imageURL, _ = url.QueryUnescape(c.Params("url"))
 
 		var cacheKey = fmt.Sprintf("face-%s-%s", provider, imageURL)
 
@@ -111,7 +112,7 @@ func (m *FaceCropManipulator) Execute(c echo.Context, params map[string]string, 
 		if !useCache || !cache.GetCache().Contains(cacheKey) {
 			faces, err = detector.Detect(c, m.Cfg, params, img)
 			if err != nil {
-				c.Logger().Errorf("%v", err)
+				log.Printf("Error: %v", err)
 			}
 
 			if useCache {
@@ -119,10 +120,10 @@ func (m *FaceCropManipulator) Execute(c echo.Context, params map[string]string, 
 			}
 		} else {
 			faces = cache.GetCache().Get(cacheKey).([]image.Rectangle)
-			c.Logger().Debugf("Found faces cache")
+			log.Printf("Found faces cache")
 		}
 
-		c.Logger().Debugf("Faces: %v", faces)
+		log.Printf("Faces: %v", faces)
 		if len(faces) == 0 {
 			return img, nil
 		}
@@ -165,8 +166,8 @@ func (m *FaceCropManipulator) Execute(c echo.Context, params map[string]string, 
 		height := float64(img.Bounds().Dy())
 		imgRatio := math.Max(width, height) / math.Min(width, height)
 
-		c.Logger().Debugf("Bound Min: %v", boundMin)
-		c.Logger().Debugf("Bound Max: %v", boundMax)
+		log.Printf("Bound Min: %v", boundMin)
+		log.Printf("Bound Max: %v", boundMax)
 
 		if debug {
 			// Draw the bounding rectangle before padding
@@ -180,12 +181,12 @@ func (m *FaceCropManipulator) Execute(c echo.Context, params map[string]string, 
 			padding, _ = strconv.ParseFloat(v, 64)
 		}
 
-		c.Logger().Debugf("BoundRectWidth=%d  BoundRectHeight=%d", boundWidth, boundHeight)
+		log.Printf("BoundRectWidth=%d  BoundRectHeight=%d", boundWidth, boundHeight)
 
 		widthPadding := int(float64(boundWidth) * padding)
 		heightPadding := int(float64(boundHeight) * padding)
 
-		c.Logger().Debugf("Width Padding=%d  Height Padding=%d", widthPadding, heightPadding)
+		log.Printf("Width Padding=%d  Height Padding=%d", widthPadding, heightPadding)
 
 		boundMin.X -= widthPadding
 		boundMin.Y -= heightPadding
@@ -231,8 +232,8 @@ func (m *FaceCropManipulator) Execute(c echo.Context, params map[string]string, 
 			}
 		}
 
-		c.Logger().Debugf("Resized Bound Min %v", boundMin)
-		c.Logger().Debugf("Resized Bound Max %v", boundMax)
+		log.Printf("Resized Bound Min %v", boundMin)
+		log.Printf("Resized Bound Max %v", boundMax)
 
 		//boundWidth = boundMax.X - boundMin.X
 		//boundHeight = boundMax.Y - boundMin.Y

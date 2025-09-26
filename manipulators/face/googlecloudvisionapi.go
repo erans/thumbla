@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"image"
 	"image/jpeg"
+	"log"
 	"net/http"
 
 	"golang.org/x/oauth2/google"
@@ -13,7 +14,7 @@ import (
 	vision "google.golang.org/api/vision/v1"
 
 	"github.com/erans/thumbla/config"
-	"github.com/labstack/echo/v4"
+	"github.com/gofiber/fiber/v2"
 )
 
 const (
@@ -31,8 +32,8 @@ func NewGoogleCloudVisionAPIDetector() *GoogleCloudVisionAPIDetector {
 }
 
 // Detect finds faces using Google's Vision API
-func (d *GoogleCloudVisionAPIDetector) Detect(c echo.Context, cfg *config.Config, params map[string]string, img image.Image) ([]image.Rectangle, error) {
-	c.Logger().Debugf("Detecting using Google Vision API")
+func (d *GoogleCloudVisionAPIDetector) Detect(c *fiber.Ctx, cfg *config.Config, params map[string]string, img image.Image) ([]image.Rectangle, error) {
+	log.Printf("Detecting using Google Vision API")
 	var err error
 	var client *http.Client
 	ctx := context.Background()
@@ -77,14 +78,14 @@ func (d *GoogleCloudVisionAPIDetector) Detect(c echo.Context, cfg *config.Config
 	var res *vision.BatchAnnotateImagesResponse
 	res, err = service.Images.Annotate(batch).Do()
 	if err != nil {
-		c.Logger().Errorf("Google Vision API request failed: %v", err)
+		log.Printf("Google Vision API request failed: %v", err)
 		return nil, err
 	}
 
 	if faceAnnotations := res.Responses[0].FaceAnnotations; len(faceAnnotations) > 0 {
 		var result = make([]image.Rectangle, len(faceAnnotations))
 		for i, f := range faceAnnotations {
-			c.Logger().Debugf("Bounding Poly: %v", f.BoundingPoly.Vertices)
+			log.Printf("Bounding Poly: %v", f.BoundingPoly.Vertices)
 			x0 := int(f.BoundingPoly.Vertices[0].X)
 			y0 := int(f.BoundingPoly.Vertices[0].Y)
 

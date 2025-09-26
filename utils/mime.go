@@ -8,7 +8,7 @@ func GetMimeTypeByFileExt(url string) string {
 	var fileExt = strings.ToLower(strings.TrimSpace(parts[len(parts)-1]))
 
 	if fileExt == "jpg" || fileExt == "jpeg" {
-		return "image/jpg"
+		return "image/jpeg"
 	} else if fileExt == "png" {
 		return "image/png"
 	} else if fileExt == "webp" {

@@ -4,14 +4,14 @@ import (
 	"io"
 
 	"github.com/erans/thumbla/config"
-	"github.com/labstack/echo/v4"
+	"github.com/gofiber/fiber/v2"
 )
 
 // Fetcher interface handles fetching content from different sources
 type Fetcher interface {
 	GetName() string
 	GetFetcherType() string
-	Fetch(ctx echo.Context, url string) (responseBody io.Reader, contentType string, err error)
+	Fetch(ctx *fiber.Ctx, url string) (responseBody io.Reader, contentType string, err error)
 }
 
 var fetcherRegistry []Fetcher
