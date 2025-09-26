@@ -5,7 +5,7 @@ import (
 
 	"github.com/anthonynsimon/bild/transform"
 	"github.com/erans/thumbla/config"
-	"github.com/labstack/echo/v4"
+	"github.com/gofiber/fiber/v2"
 )
 
 // FlipHorizontalManipulator flips the image horizontally
@@ -13,7 +13,7 @@ type FlipHorizontalManipulator struct {
 }
 
 // Execute runs the flip horizontal manipulator and flips the image horizontally
-func (manipulator *FlipHorizontalManipulator) Execute(c echo.Context, params map[string]string, img image.Image) (image.Image, error) {
+func (manipulator *FlipHorizontalManipulator) Execute(c *fiber.Ctx, params map[string]string, img image.Image) (image.Image, error) {
 	return transform.FlipH(img), nil
 }
 

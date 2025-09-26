@@ -2,13 +2,17 @@ package fetchers
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 
+	"github.com/erans/thumbla/config"
+	"github.com/erans/thumbla/middleware"
 	"github.com/erans/thumbla/utils"
-	"github.com/labstack/echo/v4"
+	"github.com/gofiber/fiber/v2"
 )
 
 // LocalFetcher fetches content from http/https sources
@@ -20,22 +24,62 @@ type LocalFetcher struct {
 }
 
 // Fetch returns content from the local machine
-func (fetcher *LocalFetcher) Fetch(c echo.Context, url string) (io.Reader, string, error) {
+func (fetcher *LocalFetcher) Fetch(c *fiber.Ctx, url string) (io.Reader, string, error) {
 	filename := strings.Replace(url, "local://", "", -1)
-	fileFullPath := path.Join(fetcher.Path, filename)
 
-	c.Logger().Debugf("File to load: %s", fileFullPath)
+	// Clean the filename and validate against path traversal
+	cleanFilename := filepath.Clean(filename)
+	if strings.Contains(cleanFilename, "..") {
+		return nil, "", fmt.Errorf("path traversal attempt detected: %s", filename)
+	}
+
+	fileFullPath := path.Join(fetcher.Path, cleanFilename)
+
+	// Double-check that the resolved path is still within the allowed directory
+	absBasePath, err := filepath.Abs(fetcher.Path)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to resolve base path: %w", err)
+	}
+
+	absFilePath, err := filepath.Abs(fileFullPath)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to resolve file path: %w", err)
+	}
+
+	if !strings.HasPrefix(absFilePath, absBasePath) {
+		return nil, "", fmt.Errorf("path traversal attempt detected: %s", filename)
+	}
+
+	if c != nil {
+		logger := middleware.GetLoggerFromContext(c)
+		logger.Debug().Str("file", fileFullPath).Msg("Loading local file")
+	}
+
+	// Check file size before reading to prevent memory exhaustion
+	fileInfo, err := os.Stat(fileFullPath)
+	if err != nil {
+		return nil, "", err
+	}
+
+	maxSize := config.GetConfig().GetMaxImageSizeBytes()
+	if fileInfo.Size() > maxSize {
+		return nil, "", fmt.Errorf("file size (%d bytes) exceeds maximum allowed size (%d bytes)",
+			fileInfo.Size(), maxSize)
+	}
 
 	var buf []byte
-	var err error
 	buf, err = os.ReadFile(fileFullPath)
 	if err != nil {
 		return nil, "", err
 	}
 
-	c.Logger().Debugf("url=%s  GetMimeTypeByFileExt=%s", url, utils.GetMimeTypeByFileExt(url))
+	contentType := utils.GetMimeTypeByFileExt(url)
+	if c != nil {
+		logger := middleware.GetLoggerFromContext(c)
+		logger.Debug().Str("url", url).Str("contentType", contentType).Msg("Determined content type")
+	}
 
-	return bytes.NewReader(buf), utils.GetMimeTypeByFileExt(url), nil
+	return bytes.NewReader(buf), contentType, nil
 }
 
 // GetName returns the name assigned to this fetcher that can be used in the 'paths' section

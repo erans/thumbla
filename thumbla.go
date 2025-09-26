@@ -3,16 +3,19 @@ package main
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/erans/thumbla/cache"
 	"github.com/erans/thumbla/config"
 	"github.com/erans/thumbla/fetchers"
 	"github.com/erans/thumbla/handlers"
 	"github.com/erans/thumbla/manipulators"
+	"github.com/erans/thumbla/middleware"
 
-	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
-	"github.com/labstack/gommon/log"
+	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/limiter"
+	"github.com/gofiber/fiber/v2/middleware/recover"
+	"github.com/rs/zerolog/log"
 
 	kingpin "github.com/alecthomas/kingpin/v2"
 )
@@ -23,20 +26,9 @@ var (
 	port       = kingpin.Flag("port", "Listening Port").Short('p').OverrideDefaultFromEnvar("PORT").Default("1323").String()
 )
 
-var debugLevels = map[string]log.Lvl{
-	"debug": log.DEBUG,
-	"info":  log.INFO,
-	"warn":  log.WARN,
-	"error": log.ERROR,
-	"off":   log.OFF,
-}
-
-func getDebugLevelByName(name string) log.Lvl {
-	if val, ok := debugLevels[name]; ok {
-		return val
-	}
-
-	return log.ERROR
+// Initialize zerolog based on debug level
+func initLogging(cfg *config.Config) {
+	middleware.InitGlobalLogger(cfg.DebugLevel, true)
 }
 
 func main() {
@@ -52,6 +44,9 @@ func main() {
 	// Set currently active global config
 	config.SetConfig(cfg)
 
+	// Initialize logging
+	initLogging(cfg)
+
 	// Init all registered fetchers
 	fetchers.InitFetchers(cfg)
 
@@ -61,22 +56,57 @@ func main() {
 	// Init the cache handlers
 	cache.InitCache(cfg)
 
-	e := echo.New()
+	app := fiber.New(fiber.Config{
+		BodyLimit:    int(cfg.GetMaxRequestSize()),
+		ReadTimeout:  time.Duration(cfg.GetReadTimeout()) * time.Second,
+		WriteTimeout: time.Duration(cfg.GetWriteTimeout()) * time.Second,
+		ErrorHandler: func(c *fiber.Ctx, err error) error {
+			logger := middleware.GetLoggerFromContext(c)
+			logger.Error().Err(err).Msg("Request error")
+			return c.Status(fiber.StatusInternalServerError).SendString("Internal Server Error")
+		},
+	})
 
-	e.Use(middleware.Logger())
-	e.Use(middleware.Recover())
+	// Use zerolog middleware instead of default logger
+	app.Use(middleware.New())
+	app.Use(recover.New())
 
-	e.Logger.SetLevel(getDebugLevelByName(cfg.DebugLevel))
+	// Add rate limiting if enabled
+	if cfg.IsRateLimitEnabled() {
+		app.Use(limiter.New(limiter.Config{
+			Max:        cfg.GetRateLimitMaxRequests(),
+			Expiration: time.Duration(cfg.GetRateLimitWindow()) * time.Second,
+			KeyGenerator: func(c *fiber.Ctx) string {
+				return c.IP() // Rate limit per IP address
+			},
+			LimitReached: func(c *fiber.Ctx) error {
+				logger := middleware.GetLoggerFromContext(c)
+				logger.Warn().
+					Str("ip", c.IP()).
+					Int("limit", cfg.GetRateLimitMaxRequests()).
+					Int("window", cfg.GetRateLimitWindow()).
+					Msg("Rate limit exceeded")
+				return c.Status(fiber.StatusTooManyRequests).SendString("Rate limit exceeded")
+			},
+		}))
+		log.Info().
+			Int("maxRequests", cfg.GetRateLimitMaxRequests()).
+			Int("windowSec", cfg.GetRateLimitWindow()).
+			Msg("Rate limiting enabled")
+	}
 
-	e.GET("/health", handlers.HandleHealth)
+	app.Get("/health", handlers.HandleHealth)
 
 	for _, p := range cfg.Paths {
 		var path = p.Path
 		if strings.Index(path, ":url") == -1 {
 			path = fmt.Sprintf("%s/:url/*", path)
 		}
-		e.GET(path, handlers.HandleImage)
+		app.Get(path, handlers.HandleImage)
 	}
 
-	e.Logger.Fatal(e.Start(fmt.Sprintf("%s:%s", *host, *port)))
+	log.Info().Str("host", *host).Str("port", *port).Msg("Starting Thumbla server")
+	if err := app.Listen(fmt.Sprintf("%s:%s", *host, *port)); err != nil {
+		log.Fatal().Err(err).Msg("Failed to start server")
+	}
 }

@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/erans/thumbla/config"
-	"github.com/labstack/echo/v4"
+	"github.com/gofiber/fiber/v2"
 )
 
 // CropManipulator crops the image
@@ -52,7 +52,7 @@ var alignmentRegistry = map[string]func(b image.Rectangle, bb image.Rectangle) i
 }
 
 // Execute runs the paste manipulator
-func (manipulator *PasteManipulator) Execute(c echo.Context, params map[string]string, img image.Image) (image.Image, error) {
+func (manipulator *PasteManipulator) Execute(c *fiber.Ctx, params map[string]string, img image.Image) (image.Image, error) {
 	if imgUrl, ok := params["img"]; ok {
 		response, err := http.Get(imgUrl)
 		if err != nil {

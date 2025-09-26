@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"image"
 	"image/jpeg"
+	"log"
 
 	"github.com/erans/thumbla/config"
-	"github.com/labstack/echo/v4"
+	"github.com/gofiber/fiber/v2"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -27,8 +28,8 @@ func NewAWSRekognitionDetector() *AWSRekognitionDetector {
 }
 
 // Detect uses AWS Rekognition API to detect faces in images
-func (d *AWSRekognitionDetector) Detect(c echo.Context, cfg *config.Config, params map[string]string, img image.Image) ([]image.Rectangle, error) {
-	c.Logger().Debugf("Detecting using AWS Rekognition")
+func (d *AWSRekognitionDetector) Detect(c *fiber.Ctx, cfg *config.Config, params map[string]string, img image.Image) ([]image.Rectangle, error) {
+	log.Printf("Detecting using AWS Rekognition")
 	var config *aws.Config
 
 	if cfg.FaceAPI.AWSRekognition.Region != "" {
@@ -62,7 +63,7 @@ func (d *AWSRekognitionDetector) Detect(c echo.Context, cfg *config.Config, para
 		return nil, err
 	}
 
-	c.Logger().Debugf("AWS Rekognition response: %v", output)
+	log.Printf("AWS Rekognition response: %v", output)
 
 	if output != nil && len(output.FaceDetails) > 0 {
 		var result = make([]image.Rectangle, len(output.FaceDetails))

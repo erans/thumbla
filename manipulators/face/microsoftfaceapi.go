@@ -6,10 +6,11 @@ import (
 	"image"
 	"image/jpeg"
 	"io/ioutil"
+	"log"
 	"net/http"
 
 	"github.com/erans/thumbla/config"
-	"github.com/labstack/echo/v4"
+	"github.com/gofiber/fiber/v2"
 )
 
 const (
@@ -37,8 +38,8 @@ func NewMicrosoftFaceAPIDetector() *MicrosoftFaceAPIDetector {
 }
 
 // Detect uses Microsoft Face API to detect faces in images
-func (d *MicrosoftFaceAPIDetector) Detect(c echo.Context, cfg *config.Config, params map[string]string, img image.Image) ([]image.Rectangle, error) {
-	c.Logger().Debugf("Detecting using Microsoft Face API")
+func (d *MicrosoftFaceAPIDetector) Detect(c *fiber.Ctx, cfg *config.Config, params map[string]string, img image.Image) ([]image.Rectangle, error) {
+	log.Printf("Detecting using Microsoft Face API")
 	buf := new(bytes.Buffer)
 	var err = jpeg.Encode(buf, img, nil)
 	if err != nil {
@@ -50,7 +51,7 @@ func (d *MicrosoftFaceAPIDetector) Detect(c echo.Context, cfg *config.Config, pa
 		return nil, err
 	}
 
-	c.Logger().Debugf("MS Face API URL: %s", cfg.FaceAPI.MicrosoftFaceAPI.URL)
+	log.Printf("MS Face API URL: %s", cfg.FaceAPI.MicrosoftFaceAPI.URL)
 	req.Header.Set("Ocp-Apim-Subscription-Key", cfg.FaceAPI.MicrosoftFaceAPI.Key)
 	req.Header.Set("Content-Type", "application/octet-stream")
 
@@ -61,8 +62,8 @@ func (d *MicrosoftFaceAPIDetector) Detect(c echo.Context, cfg *config.Config, pa
 	}
 
 	body, _ := ioutil.ReadAll(resp.Body)
-	c.Logger().Debugf("status code: %v", resp.StatusCode)
-	c.Logger().Debugf("body: %v", string(body))
+	log.Printf("status code: %v", resp.StatusCode)
+	log.Printf("body: %v", string(body))
 
 	tempFaces := []microsoftFace{}
 	err = json.Unmarshal(body, &tempFaces)
@@ -70,7 +71,7 @@ func (d *MicrosoftFaceAPIDetector) Detect(c echo.Context, cfg *config.Config, pa
 		return nil, err
 	}
 
-	c.Logger().Debugf("Faces: %v", tempFaces)
+	log.Printf("Faces: %v", tempFaces)
 
 	faces := make([]image.Rectangle, len(tempFaces))
 	for i, v := range tempFaces {

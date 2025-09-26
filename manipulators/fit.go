@@ -3,10 +3,11 @@ package manipulators
 import (
 	"fmt"
 	"image"
+	"log"
 	"strconv"
 
 	"github.com/erans/thumbla/config"
-	"github.com/labstack/echo/v4"
+	"github.com/gofiber/fiber/v2"
 )
 
 // FitManipulator fits the image to the specified size
@@ -14,14 +15,14 @@ type FitManipulator struct {
 }
 
 // Execute runs the fit manipulator and fits the image to the specified size
-func (manipulator *FitManipulator) Execute(c echo.Context, params map[string]string, img image.Image) (image.Image, error) {
+func (manipulator *FitManipulator) Execute(c *fiber.Ctx, params map[string]string, img image.Image) (image.Image, error) {
 	var maxW = -1
 	var maxH = -1
 	var resizeFilterName = "linear"
 	var err error
 
 	if v, ok := params["w"]; ok {
-		c.Logger().Debugf("Fit: W=%s", v)
+		log.Printf("Fit: W=%s", v)
 		if maxW, err = strconv.Atoi(v); err != nil {
 			return nil, fmt.Errorf("invalid width (w) value")
 		}

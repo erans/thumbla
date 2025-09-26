@@ -8,9 +8,7 @@ import (
 	"image/jpeg"
 	"image/png"
 	"io"
-	"log"
 	"math"
-	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
@@ -21,11 +19,12 @@ import (
 	"github.com/srwiley/rasterx"
 	"golang.org/x/image/webp"
 
-	"github.com/labstack/echo/v4"
+	"github.com/gofiber/fiber/v2"
 
 	"github.com/erans/thumbla/config"
 	"github.com/erans/thumbla/fetchers"
 	"github.com/erans/thumbla/manipulators"
+	"github.com/erans/thumbla/middleware"
 	"github.com/erans/thumbla/utils"
 )
 
@@ -34,11 +33,12 @@ type manipulatorAction struct {
 	Params map[string]string
 }
 
-func loadImage(c echo.Context, url string, contentType string, body io.Reader, alternativeWidth int, alternativeHeight int) (image.Image, error) {
+func loadImage(c *fiber.Ctx, url string, contentType string, body io.Reader, alternativeWidth int, alternativeHeight int) (image.Image, error) {
 	var img image.Image
 	var err error
 
-	c.Logger().Debugf("loadImage contentType=%s", contentType)
+	logger := middleware.GetLoggerFromContext(c)
+	logger.Debug().Str("contentType", contentType).Msg("Loading image")
 
 	if contentType == "" {
 		contentType = utils.GetMimeTypeByFileExt(url)
@@ -48,7 +48,7 @@ func loadImage(c echo.Context, url string, contentType string, body io.Reader, a
 		return nil, fmt.Errorf("content Type is missing and could not be inferred")
 	}
 
-	if contentType == "image/jpg" || contentType == "image/jpeg" {
+	if contentType == "image/jpeg" || contentType == "image/jpg" {
 		img, err = jpeg.Decode(body)
 	} else if contentType == "image/png" {
 		img, err = png.Decode(body)
@@ -100,10 +100,102 @@ func loadImage(c echo.Context, url string, contentType string, body io.Reader, a
 		return nil, err
 	}
 
+	// Validate image dimensions to prevent memory exhaustion attacks
+	if img != nil {
+		bounds := img.Bounds()
+		width := bounds.Dx()
+		height := bounds.Dy()
+
+		cfg := config.GetConfig()
+		maxDimension := cfg.GetMaxImageDimension()
+
+		if width > maxDimension || height > maxDimension {
+			logger.Warn().
+				Int("width", width).
+				Int("height", height).
+				Int("maxDimension", maxDimension).
+				Msg("Image dimensions exceed maximum allowed size")
+			return nil, fmt.Errorf("image dimensions (%dx%d) exceed maximum allowed size (%dx%d)",
+				width, height, maxDimension, maxDimension)
+		}
+
+		logger.Debug().
+			Int("width", width).
+			Int("height", height).
+			Msg("Image dimensions validated")
+	}
+
 	return img, nil
 }
 
-func parseManipulators(c echo.Context) []*manipulatorAction {
+// validateManipulatorParameter validates manipulator parameter values
+func validateManipulatorParameter(paramName, paramValue string) error {
+	// Validate parameter name is not too long (prevent memory exhaustion)
+	if len(paramName) > 50 {
+		return fmt.Errorf("parameter name too long: %d characters", len(paramName))
+	}
+
+	// Validate parameter value is not too long
+	if len(paramValue) > 100 {
+		return fmt.Errorf("parameter value too long: %d characters", len(paramValue))
+	}
+
+	// Check for numeric parameters and validate ranges
+	if paramValue != "" {
+		// Common numeric parameters that should have reasonable bounds
+		numericParams := map[string]struct {
+			min, max float64
+		}{
+			"w":       {1, 20000},      // width: 1px to 20,000px
+			"h":       {1, 20000},      // height: 1px to 20,000px
+			"q":       {1, 100},        // quality: 1% to 100%
+			"a":       {-360, 360},     // angle: -360° to 360°
+			"x":       {0, 20000},      // x coordinate: 0 to 20,000px
+			"y":       {0, 20000},      // y coordinate: 0 to 20,000px
+			"r":       {0, 255},        // RGB values: 0 to 255
+			"g":       {0, 255},        // RGB values: 0 to 255
+			"b":       {0, 255},        // RGB values: 0 to 255
+			"a_color": {0, 255},        // Alpha: 0 to 255
+		}
+
+		if bounds, isNumeric := numericParams[paramName]; isNumeric {
+			if val, err := strconv.ParseFloat(paramValue, 64); err == nil {
+				if val < bounds.min || val > bounds.max {
+					return fmt.Errorf("parameter %s value %g is outside valid range [%g, %g]",
+						paramName, val, bounds.min, bounds.max)
+				}
+			} else {
+				return fmt.Errorf("parameter %s requires numeric value, got: %s", paramName, paramValue)
+			}
+		}
+
+		// Validate format parameter has only allowed values
+		if paramName == "f" {
+			allowedFormats := map[string]bool{
+				"jpg":  true,
+				"jpeg": true,
+				"png":  true,
+				"webp": true,
+				"gif":  true,
+			}
+			if !allowedFormats[strings.ToLower(paramValue)] {
+				return fmt.Errorf("unsupported format: %s", paramValue)
+			}
+		}
+
+		// Validate boolean parameters
+		if paramName == "lossless" || paramName == "progressive" {
+			if paramValue != "true" && paramValue != "false" && paramValue != "1" && paramValue != "0" {
+				return fmt.Errorf("parameter %s requires boolean value (true/false/1/0), got: %s",
+					paramName, paramValue)
+			}
+		}
+	}
+
+	return nil
+}
+
+func parseManipulators(c *fiber.Ctx) []*manipulatorAction {
 	// Split / different manipulators
 	// Split : manipulator name + params
 	// Split , manipulator params
@@ -113,7 +205,7 @@ func parseManipulators(c echo.Context) []*manipulatorAction {
 	// rotate:a=45,p=5|35/resize:w=405,h=32/output:f=jpg,q=45
 	var result []*manipulatorAction
 	var err error
-	var p = c.Param("*")
+	var p = c.Params("*")
 
 	// There are no manipulators on the URL
 	if p == "" {
@@ -131,14 +223,15 @@ func parseManipulators(c echo.Context) []*manipulatorAction {
 			manipulatorName = parts[0]
 		}
 
-		c.Logger().Debugf("Manipulator Name: %s", manipulatorName)
+		logger := middleware.GetLoggerFromContext(c)
+	logger.Debug().Str("manipulator", manipulatorName).Msg("Processing manipulator")
 
 		if len(parts) > 1 {
 			manipulatorParamsString = parts[1]
 		}
 
 		var manipulatorParams = map[string]string{}
-		c.Logger().Debugf("manipulatorParamsString=%s", manipulatorParamsString)
+		logger.Debug().Str("params", manipulatorParamsString).Msg("Parsing manipulator parameters")
 		for _, v := range strings.Split(manipulatorParamsString, ",") {
 			var manipulatorParamName string
 			var manipulatorParamValue string
@@ -155,9 +248,18 @@ func parseManipulators(c echo.Context) []*manipulatorAction {
 				}
 			}
 
-			c.Logger().Debugf("%s=%s", manipulatorParamName, manipulatorParamValue)
+			logger.Debug().Str("param", manipulatorParamName).Str("value", manipulatorParamValue).Msg("Parsed parameter")
 
 			if manipulatorParamName != "" {
+				// Validate parameter values to prevent attacks
+				if err := validateManipulatorParameter(manipulatorParamName, manipulatorParamValue); err != nil {
+					logger.Warn().
+						Str("param", manipulatorParamName).
+						Str("value", manipulatorParamValue).
+						Err(err).
+						Msg("Invalid manipulator parameter")
+					return nil
+				}
 				manipulatorParams[manipulatorParamName] = manipulatorParamValue
 			}
 		}
@@ -170,30 +272,30 @@ func parseManipulators(c echo.Context) []*manipulatorAction {
 	return result
 }
 
-func writeImageToResponse(c echo.Context, contentType string, img image.Image) error {
+func writeImageToResponse(c *fiber.Ctx, contentType string, img image.Image) error {
 
-	if contentType == "image/jpg" || contentType == "image/jpeg" {
+	if contentType == "image/jpeg" || contentType == "image/jpg" {
 		var quality = 90
-		var tempQuality = c.Response().Header().Get("X-Quality")
+		var tempQuality = c.Get("X-Quality")
 		if tempQuality != "" {
 			quality, _ = strconv.Atoi(tempQuality)
 		}
 
-		c.Response().Header().Del("X-Quality")
+		c.Response().Header.Del("X-Quality")
 
-		var encoder = c.Response().Header().Get("X-Encoder")
+		var encoder = c.Get("X-Encoder")
 		if encoder == "" {
 			encoder = "jpeg"
 		}
 
 		if encoder == "jpeg" {
-			jpeg.Encode(c.Response().Writer, img, &jpeg.Options{Quality: quality})
+			jpeg.Encode(c.Response().BodyWriter(), img, &jpeg.Options{Quality: quality})
 		}
 	} else if contentType == "image/png" {
-		png.Encode(c.Response().Writer, img)
+		png.Encode(c.Response().BodyWriter(), img)
 	} else if contentType == "image/webp" {
 		var quality = 100.0
-		var tempQuality = c.Response().Header().Get("X-Quality")
+		var tempQuality = c.Get("X-Quality")
 		if tempQuality != "" {
 			quality, _ = strconv.ParseFloat(tempQuality, 32)
 		}
@@ -201,19 +303,19 @@ func writeImageToResponse(c echo.Context, contentType string, img image.Image) e
 
 		options, err := encoder.NewLossyEncoderOptions(encoder.PresetDefault, float32(quality))
 		if err != nil {
-			log.Fatalln(err)
+			return fmt.Errorf("failed to create WebP encoder options: %w", err)
 		}
 
-		var temp = c.Response().Header().Get("X-Lossless")
+		var temp = c.Get("X-Lossless")
 		if temp != "" && (temp == "1" || temp == "true") {
 			options.Lossless = true
 		}
 
-		temp = c.Response().Header().Get("X-Exact")
+		temp = c.Get("X-Exact")
 		if temp != "" && (temp == "1" || temp == "true") {
 			options.Exact = 1
 		}
-		kolesawebp.Encode(c.Response().Writer, img, options)
+		kolesawebp.Encode(c.Response().BodyWriter(), img, options)
 	} else {
 		return fmt.Errorf("write image to response failed. Unknown content type '%s'", contentType)
 	}
@@ -233,28 +335,29 @@ func getFileParams(imageURL string) (string, []string) {
 }
 
 // HandleImage is the image handler
-func HandleImage(c echo.Context) error {
-	c.Logger().Debugf("Path: %v", c.Path())
+func HandleImage(c *fiber.Ctx) error {
+	logger := middleware.GetLoggerFromContext(c)
+	logger.Debug().Str("path", c.Path()).Msg("Handling image request")
 
-	pathConfig := config.GetConfig().GetPathConfigByPath(c.Path())
+	pathConfig := config.GetConfig().GetPathConfigByPath(c.Route().Path)
 
 	var imageURL string
 	var err error
-	imageURL, err = url.QueryUnescape(c.Param("url"))
+	imageURL, err = url.QueryUnescape(c.Params("url"))
 	if err != nil {
-		return c.String(http.StatusBadRequest, "Invalid URL passed. Have you tried URL escaping it?")
+		return c.Status(fiber.StatusBadRequest).SendString("Invalid URL passed. Have you tried URL escaping it?")
 	}
-	c.Logger().Debugf("url=%s", imageURL)
+	logger.Debug().Str("imageURL", imageURL).Msg("Decoded image URL")
 
 	var parsedURL *url.URL
 	if parsedURL, err = url.Parse(imageURL); err != nil {
-		return c.String(http.StatusBadRequest, "Unable to parse passed URL")
+		return c.Status(fiber.StatusBadRequest).SendString("Unable to parse passed URL")
 	}
 
-	c.Logger().Debugf("Searching for fetcher for path: %s", c.Path())
-	c.Logger().Debugf("URL given: %s", parsedURL.String())
+	logger.Debug().Str("routePath", c.Route().Path).Msg("Searching for fetcher")
+	logger.Debug().Str("parsedURL", parsedURL.String()).Msg("Parsed URL")
 
-	rawRequestPath := c.Path()
+	rawRequestPath := c.Route().Path
 	path := rawRequestPath[0:strings.Index(rawRequestPath, "/:url")]
 
 	var imageBody io.Reader
@@ -279,7 +382,7 @@ func HandleImage(c echo.Context) error {
 			buf := new(bytes.Buffer)
 			err := png.Encode(buf, img)
 			if err != nil {
-				return c.String(http.StatusBadRequest, "failed to create blank image")
+				return c.Status(fiber.StatusBadRequest).SendString("failed to create blank image")
 			}
 
 			imageBody = buf
@@ -291,61 +394,61 @@ func HandleImage(c echo.Context) error {
 	if useFetchers {
 		fetcher := fetchers.GetFetcherByPath(path)
 		if fetcher == nil {
-			c.Logger().Errorf("No fetcher is defined for specified path")
-			return c.String(http.StatusBadRequest, "No fetcher is defined for specified path")
+			logger.Error().Str("path", path).Msg("No fetcher defined for path")
+			return c.Status(fiber.StatusBadRequest).SendString("No fetcher is defined for specified path")
 		}
 
 		if imageBody, contentType, err = fetcher.Fetch(c, imageURL); err != nil {
-			c.Logger().Errorf("Failed to fetch image. Reason=%v   url=%s", err, imageURL)
-			return c.String(http.StatusInternalServerError, fmt.Sprintf("Failed to fetch image. url=%s", imageURL))
+			logger.Error().Err(err).Str("imageURL", imageURL).Msg("Failed to fetch image")
+			return c.Status(fiber.StatusInternalServerError).SendString(fmt.Sprintf("Failed to fetch image. url=%s", imageURL))
 		}
 	}
 
 	if imageBody == nil {
-		return c.String(http.StatusNotFound, "file not found")
+		return c.Status(fiber.StatusNotFound).SendString("file not found")
 	}
 
-	c.Logger().Debugf("Image Content-Type=%s   url=%s", contentType, imageURL)
+	logger.Debug().Str("contentType", contentType).Str("imageURL", imageURL).Msg("Image fetched successfully")
 
 	var img image.Image
 	if img, err = loadImage(c, imageURL, contentType, imageBody, alternateWidth, alternateHeight); err != nil {
-		return c.String(http.StatusInternalServerError, fmt.Sprintf("failed to load fetched image. url=%s", imageURL))
+		return c.Status(fiber.StatusInternalServerError).SendString(fmt.Sprintf("failed to load fetched image. url=%s", imageURL))
 	}
 
 	m := parseManipulators(c)
 
 	for _, action := range m {
-		c.Logger().Debugf("Manipulator requested: %s", action.Name)
+		logger.Debug().Str("manipulator", action.Name).Msg("Applying manipulator")
 		manipulator := manipulators.GetManipulatorByName(action.Name)
 		if manipulator != nil {
-			c.Logger().Debugf("Executing Manipulator - %s", action.Name)
+			logger.Debug().Str("manipulator", action.Name).Msg("Executing manipulator")
 			if img, err = manipulator.Execute(c, action.Params, img); err != nil {
-				return c.String(http.StatusInternalServerError, fmt.Sprintf("failed to execute manipulator '%s'. Reason: %v", action.Name, err))
+				return c.Status(fiber.StatusInternalServerError).SendString(fmt.Sprintf("failed to execute manipulator '%s'. Reason: %v", action.Name, err))
 			}
 		}
 	}
 
-	outputContentType := c.Response().Header().Get("Content-Type")
+	outputContentType := c.Get("Content-Type")
 	if outputContentType == "" {
 		outputContentType = contentType
-		c.Response().Header().Set("Content-Type", outputContentType)
+		c.Set("Content-Type", outputContentType)
 	}
 
 	var cacheControlHeaderValue = config.GetConfig().CacheControlHeader
 	if pathConfig != nil && pathConfig.CacheControl != "" {
 		cacheControlHeaderValue = pathConfig.CacheControl
 	}
-	c.Logger().Debugf("Config cache-control header value: %s", cacheControlHeaderValue)
+	logger.Debug().Str("cacheControl", cacheControlHeaderValue).Msg("Setting cache control header from config")
 	if cacheControlHeaderValue != "" {
-		c.Logger().Debugf("Setting cache-control header value: %s", cacheControlHeaderValue)
-		c.Response().Header().Set("Cache-Control", cacheControlHeaderValue)
+		logger.Debug().Str("cacheControl", cacheControlHeaderValue).Msg("Applied cache control header")
+		c.Set("Cache-Control", cacheControlHeaderValue)
 	}
 
 	err = writeImageToResponse(c, outputContentType, img)
 	if err != nil {
-		return c.String(http.StatusInternalServerError, "Failed to write response")
+		return c.Status(fiber.StatusInternalServerError).SendString("Failed to write response")
 	}
 
-	c.Response().Status = http.StatusOK
+	c.Status(fiber.StatusOK)
 	return nil
 }

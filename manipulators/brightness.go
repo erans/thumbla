@@ -7,7 +7,7 @@ import (
 
 	"github.com/anthonynsimon/bild/adjust"
 	"github.com/erans/thumbla/config"
-	"github.com/labstack/echo/v4"
+	"github.com/gofiber/fiber/v2"
 )
 
 // BrightnessManipulator adjusts the brightness of the image
@@ -15,7 +15,7 @@ type BrightnessManipulator struct {
 }
 
 // Execute runs the brightness manipulator and adjusts the image brightness
-func (manipulator *BrightnessManipulator) Execute(c echo.Context, params map[string]string, img image.Image) (image.Image, error) {
+func (manipulator *BrightnessManipulator) Execute(c *fiber.Ctx, params map[string]string, img image.Image) (image.Image, error) {
 	if brightnessStr, ok := params["v"]; ok {
 		brightness, err := strconv.ParseFloat(brightnessStr, 64)
 		if err != nil {

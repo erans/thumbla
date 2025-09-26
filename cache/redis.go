@@ -65,15 +65,21 @@ func (r *RedisCache) Set(key string, value interface{}) {
 		Member: key,
 	})
 
-	// Only trim if maxLRUSize is not -1 (unlimited)
-	if r.maxLRUSize != -1 {
+	// Always enforce cache size limits for security (prevent unlimited growth)
+	// Use a reasonable default if not configured or set to unlimited
+	maxSize := r.maxLRUSize
+	if maxSize <= 0 {
+		maxSize = 10000 // Default to 10,000 cache entries
+	}
+
+	if maxSize > 0 {
 		// Trim to max size if needed
 		count, err := r.client.ZCard(r.ctx, "cache_access").Result()
 		if err == nil && count > 0 {
 			// Remove oldest entries if we exceed cache size
-			if count > int64(r.maxLRUSize) {
+			if count > int64(maxSize) {
 				// Calculate how many items to remove
-				toRemove := count - int64(r.maxLRUSize)
+				toRemove := count - int64(maxSize)
 				r.client.ZPopMin(r.ctx, "cache_access", toRemove)
 			}
 		}

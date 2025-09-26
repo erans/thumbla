@@ -1,8 +1,8 @@
 package handlers
 
-import "github.com/labstack/echo/v4"
+import "github.com/gofiber/fiber/v2"
 
 // HandleHealth is the health check response
-func HandleHealth(c echo.Context) error {
-	return c.String(200, "All is well")
+func HandleHealth(c *fiber.Ctx) error {
+	return c.Status(200).SendString("All is well")
 }

@@ -9,7 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/erans/thumbla/utils"
-	"github.com/labstack/echo/v4"
+	"github.com/gofiber/fiber/v2"
 )
 
 // CloudflareR2Fetcher implements Fetcher interface for Cloudflare R2
@@ -42,14 +42,14 @@ func NewCloudflareR2Fetcher(cfg map[string]interface{}) *CloudflareR2Fetcher {
 }
 
 // Fetch downloads an object from Cloudflare R2
-func (f *CloudflareR2Fetcher) Fetch(c echo.Context, fileURL string) (io.Reader, string, error) {
+func (f *CloudflareR2Fetcher) Fetch(c *fiber.Ctx, fileURL string) (io.Reader, string, error) {
 	customResolver := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
 		return aws.Endpoint{
 			URL: fmt.Sprintf("https://%s.r2.cloudflarestorage.com", f.accountID),
 		}, nil
 	})
 
-	cfg, err := config.LoadDefaultConfig(c.Request().Context(),
+	cfg, err := config.LoadDefaultConfig(c.Context(),
 		config.WithEndpointResolverWithOptions(customResolver),
 		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
 			f.accessKeyID,
@@ -66,7 +66,7 @@ func (f *CloudflareR2Fetcher) Fetch(c echo.Context, fileURL string) (io.Reader, 
 		o.UsePathStyle = true
 	})
 
-	output, err := client.GetObject(c.Request().Context(), &s3.GetObjectInput{
+	output, err := client.GetObject(c.Context(), &s3.GetObjectInput{
 		Bucket: aws.String(f.bucket),
 		Key:    aws.String(fileURL),
 	})

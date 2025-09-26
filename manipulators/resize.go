@@ -3,13 +3,14 @@ package manipulators
 import (
 	"fmt"
 	"image"
+	"log"
 	"math"
 	"strconv"
 
 	"github.com/anthonynsimon/bild/transform"
 	"github.com/erans/thumbla/config"
 	"github.com/erans/thumbla/utils"
-	"github.com/labstack/echo/v4"
+	"github.com/gofiber/fiber/v2"
 )
 
 // ResizeManipulator resizes the image based on given parameters. If only 1 parameter is given, proportions are saved
@@ -30,7 +31,7 @@ var resamplingFilters = map[string]transform.ResampleFilter{
 // w - Width
 // h - Height
 // r - resampling filter (one of resamplingFilters values)
-func (manipulator *ResizeManipulator) Execute(c echo.Context, params map[string]string, img image.Image) (image.Image, error) {
+func (manipulator *ResizeManipulator) Execute(c *fiber.Ctx, params map[string]string, img image.Image) (image.Image, error) {
 	var width = -1.0
 	var height = -1.0
 	var resamplingFilter = transform.Linear
@@ -61,11 +62,22 @@ func (manipulator *ResizeManipulator) Execute(c echo.Context, params map[string]
 		return nil, fmt.Errorf("both width and height are less than 0")
 	}
 
+	// Validate positive values
+	if width == 0 || height == 0 {
+		return img, fmt.Errorf("width and height must be positive values")
+	}
+	if width > 0 && width < 1 {
+		return img, fmt.Errorf("width must be at least 1 pixel")
+	}
+	if height > 0 && height < 1 {
+		return img, fmt.Errorf("height must be at least 1 pixel")
+	}
+
 	imgWidth := img.Bounds().Size().X
 	imgHeight := img.Bounds().Size().Y
 	var ratio = math.Max(float64(imgWidth), float64(imgHeight)) / math.Min(float64(imgWidth), float64(imgHeight))
 
-	c.Logger().Debugf("resize: ratio=%f", ratio)
+	log.Printf("resize: ratio=%f", ratio)
 
 	if imgWidth > imgHeight {
 		if width == -1 {
@@ -85,7 +97,7 @@ func (manipulator *ResizeManipulator) Execute(c echo.Context, params map[string]
 		}
 	}
 
-	c.Logger().Debugf("Original w: %d  h: %d   New w: %d h: %d  %fx%f", imgWidth, imgHeight, int(width), int(height), width, height)
+	log.Printf("Original w: %d  h: %d   New w: %d h: %d  %fx%f", imgWidth, imgHeight, int(width), int(height), width, height)
 
 	img = transform.Resize(img, int(width), int(height), resamplingFilter)
 
