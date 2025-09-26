@@ -428,7 +428,7 @@ func HandleImage(c *fiber.Ctx) error {
 		}
 	}
 
-	outputContentType := c.Get("Content-Type")
+	outputContentType := c.GetRespHeader("Content-Type")
 	if outputContentType == "" {
 		outputContentType = contentType
 		c.Set("Content-Type", outputContentType)
