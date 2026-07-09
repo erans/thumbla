@@ -1,6 +1,8 @@
 package manipulators
 
 import (
+	"bytes"
+	"encoding/gob"
 	"fmt"
 	"image"
 	"image/color"
@@ -109,18 +111,31 @@ func (m *FaceCropManipulator) Execute(c *fiber.Ctx, params map[string]string, im
 			useCache = v != "0"
 		}
 
-		if !useCache || !cache.GetCache().Contains(cacheKey) {
+		if !useCache {
 			faces, err = detector.Detect(c, m.Cfg, params, img)
 			if err != nil {
 				log.Printf("Error: %v", err)
 			}
-
-			if useCache {
-				cache.GetCache().Set(cacheKey, faces)
+		} else if raw, ok := cache.GetCache().GetBytes(cacheKey); ok {
+			var cached []image.Rectangle
+			if gerr := gob.NewDecoder(bytes.NewReader(raw)).Decode(&cached); gerr == nil {
+				faces = cached
+				log.Printf("Found faces cache")
+			} else {
+				faces, err = detector.Detect(c, m.Cfg, params, img)
+				if err != nil {
+					log.Printf("Error: %v", err)
+				}
 			}
 		} else {
-			faces = cache.GetCache().Get(cacheKey).([]image.Rectangle)
-			log.Printf("Found faces cache")
+			faces, err = detector.Detect(c, m.Cfg, params, img)
+			if err != nil {
+				log.Printf("Error: %v", err)
+			}
+			var buf bytes.Buffer
+			if werr := gob.NewEncoder(&buf).Encode(faces); werr == nil {
+				cache.GetCache().SetBytes(cacheKey, buf.Bytes())
+			}
 		}
 
 		log.Printf("Faces: %v", faces)

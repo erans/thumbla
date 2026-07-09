@@ -103,6 +103,49 @@ cache:
 	}
 }
 
+func TestLoadConfigRedisPasswordAndTTL(t *testing.T) {
+	// Create a temporary config file
+	tempDir, err := os.MkdirTemp("", "thumbla_config_test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	configContent := `
+cache:
+  provider: "redis"
+  redis:
+    host: "localhost:6379"
+    password: "secret"
+    ttl: 42
+`
+
+	configFile := filepath.Join(tempDir, "redis-config.yml")
+	err = os.WriteFile(configFile, []byte(configContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to write config file: %v", err)
+	}
+
+	cfg, err := LoadConfig(configFile)
+	if err != nil {
+		t.Fatalf("Failed to load config: %v", err)
+	}
+
+	if cfg.Cache.Redis.Password != "secret" {
+		t.Fatalf("Expected redis password 'secret', got '%s'", cfg.Cache.Redis.Password)
+	}
+	if cfg.GetRedisTTL() != 42 {
+		t.Fatalf("Expected redis TTL 42, got %d", cfg.GetRedisTTL())
+	}
+}
+
+func TestGetRedisTTLDefault(t *testing.T) {
+	cfg := &Config{}
+	if got := cfg.GetRedisTTL(); got != 3600 {
+		t.Fatalf("Expected default redis TTL 3600, got %d", got)
+	}
+}
+
 func TestLoadConfig_InvalidFile(t *testing.T) {
 	_, err := LoadConfig("/nonexistent/config.yml")
 	if err == nil {

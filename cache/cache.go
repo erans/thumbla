@@ -14,6 +14,8 @@ type Cache interface {
 	Contains(key string) bool
 	Get(key string) interface{}
 	Set(key string, value interface{})
+	GetBytes(key string) ([]byte, bool)
+	SetBytes(key string, value []byte)
 	Clear()
 }
 
