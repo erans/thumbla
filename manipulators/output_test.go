@@ -3,6 +3,7 @@ package manipulators
 import (
 	"image"
 	"image/color"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/erans/thumbla/config"
@@ -99,4 +100,24 @@ func TestOutputManipulator_UnsupportedFormat(t *testing.T) {
 	if result != nil {
 		t.Error("Should return nil image for unsupported format when error occurs")
 	}
+}
+
+func TestOutputManipulator_QualityRecordedInLocals(t *testing.T) {
+	cfg := &config.Config{}
+	m := NewOutputManipulator(cfg)
+	app := fiber.New()
+	app.Get("/", func(c *fiber.Ctx) error {
+		img := image.NewRGBA(image.Rect(0, 0, 1, 1))
+		_, err := m.Execute(c, map[string]string{"f": "jpg", "q": "45"}, img)
+		if err != nil {
+			return err
+		}
+		if c.Locals("X-Quality") != "45" {
+			t.Errorf("expected X-Quality local = 45, got %v", c.Locals("X-Quality"))
+		}
+		return c.SendStatus(200)
+	})
+
+	req := httptest.NewRequest("GET", "/", nil)
+	app.Test(req)
 }

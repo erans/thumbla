@@ -346,54 +346,52 @@ func parseManipulators(c *fiber.Ctx) []*manipulatorAction {
 	return result
 }
 
+func localString(c *fiber.Ctx, key string) string {
+	if v, ok := c.Locals(key).(string); ok {
+		return v
+	}
+	return ""
+}
+
 func writeImageToResponse(c *fiber.Ctx, contentType string, img image.Image) error {
-
 	if contentType == "image/jpeg" || contentType == "image/jpg" {
-		var quality = 90
-		var tempQuality = c.Get("X-Quality")
-		if tempQuality != "" {
-			quality, _ = strconv.Atoi(tempQuality)
+		quality := 90
+		if q := localString(c, "X-Quality"); q != "" {
+			if n, err := strconv.Atoi(q); err == nil {
+				quality = n
+			}
 		}
-
-		c.Response().Header.Del("X-Quality")
-
-		var encoder = c.Get("X-Encoder")
-		if encoder == "" {
-			encoder = "jpeg"
+		enc := localString(c, "X-Encoder")
+		if enc == "" {
+			enc = "jpeg"
 		}
-
-		if encoder == "jpeg" {
-			jpeg.Encode(c.Response().BodyWriter(), img, &jpeg.Options{Quality: quality})
+		if enc != "jpeg" {
+			return fmt.Errorf("unsupported encoder: %s", enc)
 		}
+		jpeg.Encode(c.Response().BodyWriter(), img, &jpeg.Options{Quality: quality})
 	} else if contentType == "image/png" {
 		png.Encode(c.Response().BodyWriter(), img)
 	} else if contentType == "image/webp" {
-		var quality = 100.0
-		var tempQuality = c.Get("X-Quality")
-		if tempQuality != "" {
-			quality, _ = strconv.ParseFloat(tempQuality, 32)
+		quality := 100.0
+		if q := localString(c, "X-Quality"); q != "" {
+			if f, err := strconv.ParseFloat(q, 32); err == nil {
+				quality = f
+			}
 		}
-		//options := &chaiwebp.Options{Quality: float32(quality)}
-
 		options, err := encoder.NewLossyEncoderOptions(encoder.PresetDefault, float32(quality))
 		if err != nil {
 			return fmt.Errorf("failed to create WebP encoder options: %w", err)
 		}
-
-		var temp = c.Get("X-Lossless")
-		if temp != "" && (temp == "1" || temp == "true") {
+		if temp := localString(c, "X-Lossless"); temp == "1" || temp == "true" {
 			options.Lossless = true
 		}
-
-		temp = c.Get("X-Exact")
-		if temp != "" && (temp == "1" || temp == "true") {
+		if temp := localString(c, "X-Exact"); temp == "1" || temp == "true" {
 			options.Exact = 1
 		}
 		kolesawebp.Encode(c.Response().BodyWriter(), img, options)
 	} else {
 		return fmt.Errorf("write image to response failed. Unknown content type '%s'", contentType)
 	}
-
 	return nil
 }
 
