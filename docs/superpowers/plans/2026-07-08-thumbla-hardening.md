@@ -679,35 +679,38 @@ Edit `handlers/imagehandler.go`. Add a helper after the imports:
 ```go
 // checkImageDimensions reads format config from body and rejects images
 // exceeding maxImageDimension before the full pixel buffer is allocated.
-// It returns a fresh reader (DecodeConfig consumes bytes) and an error.
+// DecodeConfig consumes bytes, so this function reads the already-size-limited
+// body into memory once and returns a fresh reader over the full data.
 func checkImageDimensions(contentType string, body io.Reader) (io.Reader, error) {
+	data, err := io.ReadAll(body)
+	if err != nil {
+		return nil, err
+	}
+
 	maxDim := config.GetConfig().GetMaxImageDimension()
-	// Tee into a buffer so DecodeConfig consumption doesn't lose the bytes.
-	var buf bytes.Buffer
-	tee := io.TeeReader(body, &buf)
+	configReader := bytes.NewReader(data)
 
 	var w, h int
 	var cfgErr error
 	switch contentType {
 	case "image/jpeg", "image/jpg":
 		var c image.Config
-		c, cfgErr = jpeg.DecodeConfig(tee)
+		c, cfgErr = jpeg.DecodeConfig(configReader)
 		w, h = c.Width, c.Height
 	case "image/png":
 		var c image.Config
-		c, cfgErr = png.DecodeConfig(tee)
+		c, cfgErr = png.DecodeConfig(configReader)
 		w, h = c.Width, c.Height
 	case "image/webp":
 		var c image.Config
-		c, cfgErr = webp.DecodeConfig(tee)
+		c, cfgErr = webp.DecodeConfig(configReader)
 		w, h = c.Width, c.Height
 	case "image/gif":
 		var c image.Config
-		c, cfgErr = gif.DecodeConfig(tee)
+		c, cfgErr = gif.DecodeConfig(configReader)
 		w, h = c.Width, c.Height
 	default:
-		// Non-raster (svg/unknown): no config to read; return reader intact.
-		return body, nil
+		return bytes.NewReader(data), nil
 	}
 	if cfgErr != nil {
 		return nil, fmt.Errorf("failed to read image config: %w", cfgErr)
@@ -716,7 +719,7 @@ func checkImageDimensions(contentType string, body io.Reader) (io.Reader, error)
 		return nil, fmt.Errorf("image dimensions (%dx%d) exceed maximum allowed size (%dx%d)",
 			w, h, maxDim, maxDim)
 	}
-	return &buf, nil
+	return bytes.NewReader(data), nil
 }
 ```
 
