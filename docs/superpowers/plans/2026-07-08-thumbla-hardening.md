@@ -1484,13 +1484,10 @@ func writeImageToResponse(c *fiber.Ctx, contentType string, img image.Image) err
 		if enc == "" {
 			enc = "jpeg"
 		}
-		if enc != "jpeg" && enc != "guetzli" {
+		if enc != "jpeg" {
 			return fmt.Errorf("unsupported encoder: %s", enc)
 		}
-		if enc == "jpeg" {
-			jpeg.Encode(c.Response().BodyWriter(), img, &jpeg.Options{Quality: quality})
-		}
-		// guetzli is not implemented; no empty 200 body.
+		jpeg.Encode(c.Response().BodyWriter(), img, &jpeg.Options{Quality: quality})
 	} else if contentType == "image/png" {
 		png.Encode(c.Response().BodyWriter(), img)
 	} else if contentType == "image/webp" {
