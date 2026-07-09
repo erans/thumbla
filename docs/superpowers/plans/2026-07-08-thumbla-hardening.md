@@ -498,13 +498,14 @@ import (
 	"image"
 	"image/draw"
 	"io"
-	"net/http"
 
 	"github.com/erans/thumbla/config"
 	"github.com/erans/thumbla/httpclient"
 	"github.com/gofiber/fiber/v2"
 )
 ```
+
+(`"net/http"` is no longer referenced — `client.Get` is a method on the `*http.Client` returned by `httpclient.NewClient`, and the `*http.Response` type is inferred, so the `net/http` import would be unused and must be dropped.)
 
 In `Execute`, replace:
 
@@ -885,7 +886,7 @@ with:
 	return bytes.NewReader(buf), contentType, nil
 ```
 
-Add imports `"github.com/erans/thumbla/config"` and `"fmt"`.
+Add import `"github.com/erans/thumbla/config"` (`"fmt"` is already imported in `gs.go`).
 
 - [ ] **Step 3: Fix `fetchers/ds.go`**
 
