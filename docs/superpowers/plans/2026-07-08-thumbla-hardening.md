@@ -512,6 +512,7 @@ package manipulators
 import (
 	"image"
 	"image/color"
+	"strings"
 	"testing"
 
 	"github.com/erans/thumbla/config"
@@ -531,6 +532,9 @@ func TestPasteManipulator_BlocksInternalURL(t *testing.T) {
 	_, err := m.Execute(c, map[string]string{"img": "http://127.0.0.1:6379/x"}, base)
 	if err == nil {
 		t.Fatal("expected SSRF error for internal paste img URL, got none")
+	}
+	if !strings.Contains(err.Error(), "private/local") && !strings.Contains(err.Error(), "not allowed") {
+		t.Fatalf("expected SSRF guard error, got: %v", err)
 	}
 }
 ```
