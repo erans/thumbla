@@ -3,6 +3,7 @@ package manipulators
 import (
 	"fmt"
 	"image"
+	"strings"
 
 	"github.com/erans/thumbla/config"
 	"github.com/erans/thumbla/middleware"
@@ -64,6 +65,27 @@ func (manipulator *OutputManipulator) Execute(c *fiber.Ctx, params map[string]st
 	}
 
 	return img, nil
+}
+
+func (manipulator *OutputManipulator) Validate(params map[string]string) error {
+	if val, ok := params["f"]; ok {
+		if _, ok := formatContentTypeMapping[strings.ToLower(val)]; !ok {
+			return fmt.Errorf("unsupported format: %s", val)
+		}
+	}
+	if v, ok := params["q"]; ok {
+		if err := ValidateNumericInt("q", v, 1, 100); err != nil {
+			return err
+		}
+	}
+	for _, b := range []string{"lossless", "exact", "progressive"} {
+		if v, ok := params[b]; ok {
+			if v != "true" && v != "false" && v != "1" && v != "0" {
+				return fmt.Errorf("parameter %s requires boolean value, got: %s", b, v)
+			}
+		}
+	}
+	return nil
 }
 
 // NewOutputManipulator returns a new Output Manipulator

@@ -342,3 +342,29 @@ func TestHandleImage_BlankWithoutParamsReturns400(t *testing.T) {
 		t.Errorf("expected 400 for blank without params, got %d", resp.StatusCode)
 	}
 }
+
+func TestHandleImage_ResizeWithLanczosFilter(t *testing.T) {
+	_, cleanup := setupTestEnvironment(t)
+	defer cleanup()
+
+	app := fiber.New()
+	app.Get("/test/:url/*", HandleImage)
+
+	req := httptest.NewRequest("GET", "/test/test.jpg/resize:w=50,r=lanczos/output:f=jpg", nil)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("expected 200 for resize:r=lanczos, got %d (chain was dropped)", resp.StatusCode)
+	}
+
+	body, _ := io.ReadAll(resp.Body)
+	cfg, derr := jpeg.DecodeConfig(bytes.NewReader(body))
+	if derr != nil {
+		t.Fatalf("decode response: %v", derr)
+	}
+	if cfg.Width != 50 {
+		t.Errorf("expected resized width 50, got %d (manipulator chain dropped)", cfg.Width)
+	}
+}

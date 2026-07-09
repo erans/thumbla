@@ -109,6 +109,24 @@ func (manipulator *CropManipulator) Execute(c *fiber.Ctx, params map[string]stri
 	return img, nil
 }
 
+func (manipulator *CropManipulator) Validate(params map[string]string) error {
+	for _, name := range []string{"x", "y"} {
+		if v, ok := params[name]; ok {
+			if err := ValidateNumericInt(name, v, 0, 20000); err != nil {
+				return err
+			}
+		}
+	}
+	for _, name := range []string{"w", "h"} {
+		if v, ok := params[name]; ok {
+			if err := ValidateNumericInt(name, v, 1, 20000); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 // NewCropManipulator returns a new crop Manipulator
 func NewCropManipulator(cfg *config.Config) *CropManipulator {
 	return &CropManipulator{}

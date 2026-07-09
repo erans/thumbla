@@ -97,6 +97,8 @@ func (manipulator *PasteManipulator) Execute(c *fiber.Ctx, params map[string]str
 	return img, nil
 }
 
+func (manipulator *PasteManipulator) Validate(params map[string]string) error { return nil }
+
 // NewPasteManipulator returns a new Paste Manipulator
 func NewPasteManipulator(cfg *config.Config) *PasteManipulator {
 	return &PasteManipulator{}

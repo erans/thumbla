@@ -38,6 +38,15 @@ func (manipulator *BrightnessManipulator) Execute(c *fiber.Ctx, params map[strin
 	return img, nil
 }
 
+func (manipulator *BrightnessManipulator) Validate(params map[string]string) error {
+	if v, ok := params["v"]; ok {
+		if _, err := strconv.ParseFloat(v, 64); err != nil {
+			return fmt.Errorf("parameter v requires numeric value, got: %s", v)
+		}
+	}
+	return nil
+}
+
 // NewBrightnessManipulator returns a new brightness Manipulator
 func NewBrightnessManipulator(cfg *config.Config) *BrightnessManipulator {
 	return &BrightnessManipulator{}

@@ -104,6 +104,25 @@ func (manipulator *ResizeManipulator) Execute(c *fiber.Ctx, params map[string]st
 	return img, nil
 }
 
+func (manipulator *ResizeManipulator) Validate(params map[string]string) error {
+	if v, ok := params["r"]; ok {
+		if _, exists := resamplingFilters[v]; !exists {
+			return fmt.Errorf("unsupported resampling filter: %s", v)
+		}
+	}
+	if v, ok := params["w"]; ok {
+		if err := ValidateNumericInt("w", v, 1, 20000); err != nil {
+			return err
+		}
+	}
+	if v, ok := params["h"]; ok {
+		if err := ValidateNumericInt("h", v, 1, 20000); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // NewResizeManipulator returns a new Resize Manipulator
 func NewResizeManipulator(cfg *config.Config) *ResizeManipulator {
 	return &ResizeManipulator{}

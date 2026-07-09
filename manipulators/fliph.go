@@ -17,6 +17,8 @@ func (manipulator *FlipHorizontalManipulator) Execute(c *fiber.Ctx, params map[s
 	return transform.FlipH(img), nil
 }
 
+func (manipulator *FlipHorizontalManipulator) Validate(params map[string]string) error { return nil }
+
 // NewFlipHorizontalManipulator returns a new flip horizontal Manipulator
 func NewFlipHorizontalManipulator(cfg *config.Config) *FlipHorizontalManipulator {
 	return &FlipHorizontalManipulator{}

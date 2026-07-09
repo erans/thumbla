@@ -202,73 +202,6 @@ func loadImage(c *fiber.Ctx, url string, contentType string, body io.Reader, alt
 	return img, nil
 }
 
-// validateManipulatorParameter validates manipulator parameter values
-func validateManipulatorParameter(paramName, paramValue string) error {
-	// Validate parameter name is not too long (prevent memory exhaustion)
-	if len(paramName) > 50 {
-		return fmt.Errorf("parameter name too long: %d characters", len(paramName))
-	}
-
-	// Validate parameter value is not too long
-	if len(paramValue) > 100 {
-		return fmt.Errorf("parameter value too long: %d characters", len(paramValue))
-	}
-
-	// Check for numeric parameters and validate ranges
-	if paramValue != "" {
-		// Common numeric parameters that should have reasonable bounds
-		numericParams := map[string]struct {
-			min, max float64
-		}{
-			"w":       {1, 20000},  // width: 1px to 20,000px
-			"h":       {1, 20000},  // height: 1px to 20,000px
-			"q":       {1, 100},    // quality: 1% to 100%
-			"a":       {-360, 360}, // angle: -360° to 360°
-			"x":       {0, 20000},  // x coordinate: 0 to 20,000px
-			"y":       {0, 20000},  // y coordinate: 0 to 20,000px
-			"r":       {0, 255},    // RGB values: 0 to 255
-			"g":       {0, 255},    // RGB values: 0 to 255
-			"b":       {0, 255},    // RGB values: 0 to 255
-			"a_color": {0, 255},    // Alpha: 0 to 255
-		}
-
-		if bounds, isNumeric := numericParams[paramName]; isNumeric {
-			if val, err := strconv.ParseFloat(paramValue, 64); err == nil {
-				if val < bounds.min || val > bounds.max {
-					return fmt.Errorf("parameter %s value %g is outside valid range [%g, %g]",
-						paramName, val, bounds.min, bounds.max)
-				}
-			} else {
-				return fmt.Errorf("parameter %s requires numeric value, got: %s", paramName, paramValue)
-			}
-		}
-
-		// Validate format parameter has only allowed values
-		if paramName == "f" {
-			allowedFormats := map[string]bool{
-				"jpg":  true,
-				"jpeg": true,
-				"png":  true,
-				"webp": true,
-				"gif":  true,
-			}
-			if !allowedFormats[strings.ToLower(paramValue)] {
-				return fmt.Errorf("unsupported format: %s", paramValue)
-			}
-		}
-
-		// Validate boolean parameters
-		if paramName == "lossless" || paramName == "progressive" {
-			if paramValue != "true" && paramValue != "false" && paramValue != "1" && paramValue != "0" {
-				return fmt.Errorf("parameter %s requires boolean value (true/false/1/0), got: %s",
-					paramName, paramValue)
-			}
-		}
-	}
-
-	return nil
-}
-
 func parseManipulators(c *fiber.Ctx) []*manipulatorAction {
 	// Split / different manipulators
 	// Split : manipulator name + params
@@ -325,8 +258,7 @@ func parseManipulators(c *fiber.Ctx) []*manipulatorAction {
 			logger.Debug().Str("param", manipulatorParamName).Str("value", manipulatorParamValue).Msg("Parsed parameter")
 
 			if manipulatorParamName != "" {
-				// Validate parameter values to prevent attacks
-				if err := validateManipulatorParameter(manipulatorParamName, manipulatorParamValue); err != nil {
+				if err := manipulators.ValidateParamShape(manipulatorParamName, manipulatorParamValue); err != nil {
 					logger.Warn().
 						Str("param", manipulatorParamName).
 						Str("value", manipulatorParamValue).
@@ -339,6 +271,16 @@ func parseManipulators(c *fiber.Ctx) []*manipulatorAction {
 		}
 
 		if manipulatorName != "" {
+			m := manipulators.GetManipulatorByName(manipulatorName)
+			if m != nil {
+				if verr := m.Validate(manipulatorParams); verr != nil {
+					logger.Warn().
+						Str("manipulator", manipulatorName).
+						Err(verr).
+						Msg("Invalid manipulator parameters")
+					return nil
+				}
+			}
 			result[k] = &manipulatorAction{manipulatorName, manipulatorParams}
 		}
 	}

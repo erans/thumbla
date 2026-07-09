@@ -38,6 +38,15 @@ func (manipulator *ContrastManipulator) Execute(c *fiber.Ctx, params map[string]
 	return img, nil
 }
 
+func (manipulator *ContrastManipulator) Validate(params map[string]string) error {
+	if v, ok := params["v"]; ok {
+		if _, err := strconv.ParseFloat(v, 64); err != nil {
+			return fmt.Errorf("parameter v requires numeric value, got: %s", v)
+		}
+	}
+	return nil
+}
+
 // NewContrastManipulator returns a new contrast Manipulator
 func NewContrastManipulator(cfg *config.Config) *ContrastManipulator {
 	return &ContrastManipulator{}

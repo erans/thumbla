@@ -266,6 +266,8 @@ func (m *FaceCropManipulator) Execute(c *fiber.Ctx, params map[string]string, im
 	return img, nil
 }
 
+func (m *FaceCropManipulator) Validate(params map[string]string) error { return nil }
+
 // NewFaceCropManipulator returns a new face crop Manipulator
 func NewFaceCropManipulator(cfg *config.Config) *FaceCropManipulator {
 	return &FaceCropManipulator{DefaultProvider: cfg.FaceAPI.DefaultProvider, Cfg: cfg}
