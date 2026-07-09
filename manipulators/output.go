@@ -3,6 +3,7 @@ package manipulators
 import (
 	"fmt"
 	"image"
+	"strings"
 
 	"github.com/erans/thumbla/config"
 	"github.com/erans/thumbla/middleware"
@@ -31,34 +32,30 @@ func (manipulator *OutputManipulator) Execute(c *fiber.Ctx, params map[string]st
 			if contentType == "image/jpeg" || contentType == "image/jpg" || contentType == "image/webp" {
 				if val, ok := params["q"]; ok {
 					if c != nil {
-						c.Set("X-Quality", val)
+						c.Locals("X-Quality", val)
 					}
 				}
 			}
 
-			if contentType == "image/web" {
+			if contentType == "image/webp" {
 				if val, ok := params["lossless"]; ok {
 					if c != nil {
-						c.Set("X-Lossless", val)
+						c.Locals("X-Lossless", val)
 					}
 				}
 
 				if val, ok := params["exact"]; ok {
 					if c != nil {
-						c.Set("X-Exact", val)
+						c.Locals("X-Exact", val)
 					}
 				}
 			}
 
 			if val, ok := params["e"]; ok {
 				if c != nil {
-				logger := middleware.GetLoggerFromContext(c)
-				logger.Debug().Str("encoder", val).Msg("Setting encoder")
-			}
-				if val == "guetzli" {
-					if c != nil {
-						c.Set("X-Encoder", val)
-					}
+					logger := middleware.GetLoggerFromContext(c)
+					logger.Debug().Str("encoder", val).Msg("Setting encoder")
+					c.Locals("X-Encoder", val)
 				}
 			}
 		} else {
@@ -68,6 +65,30 @@ func (manipulator *OutputManipulator) Execute(c *fiber.Ctx, params map[string]st
 	}
 
 	return img, nil
+}
+
+func (manipulator *OutputManipulator) Validate(params map[string]string) error {
+	if val, ok := params["f"]; ok {
+		if _, ok := formatContentTypeMapping[strings.ToLower(val)]; !ok {
+			return fmt.Errorf("unsupported format: %s", val)
+		}
+	}
+	if v, ok := params["q"]; ok {
+		if err := ValidateNumericInt("q", v, 1, 100); err != nil {
+			return err
+		}
+	}
+	if v, ok := params["e"]; ok && v != "" && v != "jpeg" {
+		return fmt.Errorf("unsupported encoder: %s", v)
+	}
+	for _, b := range []string{"lossless", "exact", "progressive"} {
+		if v, ok := params[b]; ok {
+			if v != "true" && v != "false" && v != "1" && v != "0" {
+				return fmt.Errorf("parameter %s requires boolean value, got: %s", b, v)
+			}
+		}
+	}
+	return nil
 }
 
 // NewOutputManipulator returns a new Output Manipulator

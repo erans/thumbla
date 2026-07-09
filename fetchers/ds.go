@@ -1,14 +1,16 @@
 package fetchers
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/config"
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/erans/thumbla/config"
 	"github.com/erans/thumbla/utils"
 	"github.com/gofiber/fiber/v2"
 )
@@ -50,14 +52,14 @@ func (f *DigitalOceanSpacesFetcher) Fetch(c *fiber.Ctx, path string) (io.Reader,
 		}, nil
 	})
 
-	cfg, err := config.LoadDefaultConfig(context.TODO(),
-		config.WithEndpointResolverWithOptions(customResolver),
-		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
+	cfg, err := awsconfig.LoadDefaultConfig(context.TODO(),
+		awsconfig.WithEndpointResolverWithOptions(customResolver),
+		awsconfig.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
 			f.accessKey,
 			f.secretKey,
 			"",
 		)),
-		config.WithRegion(f.region),
+		awsconfig.WithRegion(f.region),
 	)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to load config: %v", err)
@@ -75,7 +77,27 @@ func (f *DigitalOceanSpacesFetcher) Fetch(c *fiber.Ctx, path string) (io.Reader,
 		return nil, "", fmt.Errorf("failed to get object from Spaces: %v", err)
 	}
 
-	return output.Body, aws.ToString(output.ContentType), nil
+	defer output.Body.Close()
+
+	maxSize := config.GetConfig().GetMaxImageSizeBytes()
+	contentLength := int64(0)
+	if output.ContentLength != nil {
+		contentLength = *output.ContentLength
+		if contentLength > maxSize {
+			return nil, "", fmt.Errorf("object size (%d bytes) exceeds maximum (%d bytes)", contentLength, maxSize)
+		}
+	}
+
+	buf := new(bytes.Buffer)
+	n, err := io.Copy(buf, io.LimitReader(output.Body, maxSize+1))
+	if err != nil {
+		return nil, "", err
+	}
+	if n > maxSize {
+		return nil, "", fmt.Errorf("object size exceeds maximum (%d bytes)", maxSize)
+	}
+
+	return bytes.NewReader(buf.Bytes()), aws.ToString(output.ContentType), nil
 }
 
 // GetName returns the name assigned to this fetcher

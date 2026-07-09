@@ -20,6 +20,12 @@ func (m *DummyCache) Get(key string) interface{} {
 func (m *DummyCache) Set(key string, value interface{}) {
 }
 
+// GetBytes returns a cached byte slice if it exists
+func (m *DummyCache) GetBytes(key string) ([]byte, bool) { return nil, false }
+
+// SetBytes saves a byte slice into the cache
+func (m *DummyCache) SetBytes(key string, value []byte) {}
+
 // Clear cleans the cache
 func (m *DummyCache) Clear() {
 }

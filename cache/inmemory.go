@@ -29,6 +29,21 @@ func (m *InMemoryCache) Set(key string, value interface{}) {
 	m.Cache.Add(key, value)
 }
 
+// GetBytes returns a cached byte slice if it exists
+func (m *InMemoryCache) GetBytes(key string) ([]byte, bool) {
+	if v, ok := m.Cache.Get(key); ok {
+		if b, ok := v.([]byte); ok {
+			return b, true
+		}
+	}
+	return nil, false
+}
+
+// SetBytes saves a byte slice into the cache
+func (m *InMemoryCache) SetBytes(key string, value []byte) {
+	m.Cache.Add(key, value)
+}
+
 // Clear cleans the cache
 func (m *InMemoryCache) Clear() {
 	m.Cache.Purge()

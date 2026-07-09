@@ -1,11 +1,19 @@
 package manipulators
 
 import (
+	"bytes"
+	"fmt"
 	"image"
 	"image/draw"
-	"net/http"
+	_ "image/gif"
+	_ "image/jpeg"
+	_ "image/png"
+	"io"
+
+	_ "golang.org/x/image/webp"
 
 	"github.com/erans/thumbla/config"
+	"github.com/erans/thumbla/httpclient"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -51,16 +59,52 @@ var alignmentRegistry = map[string]func(b image.Rectangle, bb image.Rectangle) i
 	},
 }
 
+func decodePastedImage(body io.Reader) (image.Image, error) {
+	maxSize := config.GetConfig().GetMaxImageSizeBytes()
+	data, err := io.ReadAll(io.LimitReader(body, maxSize+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(data)) > maxSize {
+		return nil, fmt.Errorf("paste image size (%d bytes) exceeds maximum allowed size (%d bytes)", len(data), maxSize)
+	}
+
+	cfg, _, err := image.DecodeConfig(bytes.NewReader(data))
+	if err != nil {
+		return nil, err
+	}
+
+	maxDim := config.GetConfig().GetMaxImageDimension()
+	if cfg.Width <= 0 || cfg.Height <= 0 || cfg.Width > maxDim || cfg.Height > maxDim {
+		return nil, fmt.Errorf("paste image dimensions (%dx%d) exceed maximum allowed size (%dx%d)",
+			cfg.Width, cfg.Height, maxDim, maxDim)
+	}
+
+	pastedImg, _, err := image.Decode(bytes.NewReader(data))
+	if err != nil {
+		return nil, err
+	}
+	return pastedImg, nil
+}
+
 // Execute runs the paste manipulator
 func (manipulator *PasteManipulator) Execute(c *fiber.Ctx, params map[string]string, img image.Image) (image.Image, error) {
 	if imgUrl, ok := params["img"]; ok {
-		response, err := http.Get(imgUrl)
+		client := httpclient.NewClient(httpclient.Options{
+			TimeoutSeconds: config.GetConfig().GetHTTPTimeout(),
+			MaxBytes:       config.GetConfig().GetMaxImageSizeBytes(),
+		})
+		response, err := client.Get(imgUrl)
 		if err != nil {
 			return nil, err
 		}
-
 		defer response.Body.Close()
-		pastedImg, _, err := image.Decode(response.Body)
+
+		if response.StatusCode < 200 || response.StatusCode >= 300 {
+			return nil, fmt.Errorf("paste: fetch returned HTTP %d", response.StatusCode)
+		}
+
+		pastedImg, err := decodePastedImage(response.Body)
 		if err != nil {
 			return nil, err
 		}
@@ -85,6 +129,8 @@ func (manipulator *PasteManipulator) Execute(c *fiber.Ctx, params map[string]str
 
 	return img, nil
 }
+
+func (manipulator *PasteManipulator) Validate(params map[string]string) error { return nil }
 
 // NewPasteManipulator returns a new Paste Manipulator
 func NewPasteManipulator(cfg *config.Config) *PasteManipulator {

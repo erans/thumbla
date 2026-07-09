@@ -5,6 +5,7 @@ go 1.25.1
 require (
 	cloud.google.com/go/storage v1.57.0
 	github.com/Azure/azure-storage-blob-go v0.15.0
+	github.com/alicebob/miniredis/v2 v2.38.0
 	github.com/andybalholm/brotli v1.2.0
 	github.com/anthonynsimon/bild v0.14.0
 	github.com/aws/aws-sdk-go v1.55.8
@@ -68,6 +69,7 @@ require (
 	github.com/tinylib/msgp v1.2.5 // indirect
 	github.com/valyala/fasthttp v1.66.0 // indirect
 	github.com/xhit/go-str2duration/v2 v2.1.0 // indirect
+	github.com/yuin/gopher-lua v1.1.1 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/detectors/gcp v1.39.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.63.0 // indirect

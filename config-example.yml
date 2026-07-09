@@ -16,6 +16,16 @@
 # ${ENV_VAR_NAME}
 #
 debugLevel: debug
+
+server:
+  # Trusted proxy support is disabled by default. When disabled, Fiber uses the
+  # TCP peer IP for c.IP(), so X-Forwarded-For cannot spoof rate-limit keys.
+  # Enable only when Thumbla runs behind known reverse proxies/load balancers.
+  trustedProxies:
+    enabled: false
+    proxies: []
+    proxyHeader: X-Forwarded-For
+
 fetchers:
   # openHTTPFetch will fetch any HTTP/S path
   # Path can be restricted to:
@@ -83,5 +93,5 @@ cache:
     host: localhost
     port: 6379
     db: 0
-    # expiration in seconds
-    expiration: 3600
+    # ttl in seconds
+    ttl: 3600

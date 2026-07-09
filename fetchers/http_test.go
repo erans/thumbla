@@ -3,6 +3,7 @@ package fetchers
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/erans/thumbla/config"
@@ -108,6 +109,36 @@ func TestHTTPFetcher(t *testing.T) {
 	}
 }
 
+func TestHTTPFetcher_RejectsBodyLargerThanMaxImageSizeBytes(t *testing.T) {
+	cfg := &config.Config{Server: config.ServerConfig{HTTPTimeout: 30, MaxImageSizeBytes: 10}}
+	config.SetConfig(cfg)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "image/jpeg")
+		w.WriteHeader(http.StatusOK)
+		if flusher, ok := w.(http.Flusher); ok {
+			flusher.Flush() // force chunked response so ContentLength is unknown
+		}
+		_, _ = w.Write([]byte(strings.Repeat("x", 11)))
+	}))
+	defer server.Close()
+
+	fetcher := NewHTTPFetcher(map[string]interface{}{
+		"name":                  "testHTTP",
+		"type":                  "http",
+		"disableSSRFProtection": true,
+	})
+
+	var ctx *fiber.Ctx
+	_, _, err := fetcher.Fetch(ctx, server.URL+"/oversized.jpg")
+	if err == nil {
+		t.Fatal("expected error for response body larger than MaxImageSizeBytes, got nil")
+	}
+	if !strings.Contains(err.Error(), "exceeds maximum allowed size") {
+		t.Fatalf("expected max image size error, got: %v", err)
+	}
+}
+
 func TestHTTPFetcher_RestrictPaths(t *testing.T) {
 	// Set up test config for HTTP timeout
 	cfg := &config.Config{
@@ -166,5 +197,42 @@ func TestHTTPFetcher_RestrictPaths(t *testing.T) {
 				t.Errorf("Unexpected error: %v", err)
 			}
 		})
+	}
+}
+
+func TestHTTPFetcher_SSRF_BlocksLoopbackInitialURL(t *testing.T) {
+	cfg := &config.Config{Server: config.ServerConfig{HTTPTimeout: 5, MaxImageSizeBytes: 10 * 1024 * 1024}}
+	config.SetConfig(cfg)
+
+	fetcher := NewHTTPFetcher(map[string]interface{}{
+		"name": "testHTTP",
+		"type": "http",
+		// NOTE: disableSSRFProtection intentionally NOT set.
+	})
+
+	var ctx *fiber.Ctx
+	_, _, err := fetcher.Fetch(ctx, "http://127.0.0.1:6379/test.jpg")
+	if err == nil {
+		t.Fatal("expected SSRF error blocking loopback initial URL, got none")
+	}
+}
+
+func TestHTTPFetcher_RestrictPathsBlocksDotDotTraversal(t *testing.T) {
+	cfg := &config.Config{Server: config.ServerConfig{HTTPTimeout: 5, MaxImageSizeBytes: 10 * 1024 * 1024}}
+	config.SetConfig(cfg)
+
+	fetcher := NewHTTPFetcher(map[string]interface{}{
+		"name":          "testHTTP",
+		"type":          "http",
+		"restrictPaths": []interface{}{"/allowed/"},
+	})
+
+	var ctx *fiber.Ctx
+	_, _, err := fetcher.Fetch(ctx, "http://8.8.8.8/allowed/../secret/test.jpg")
+	if err == nil {
+		t.Fatal("expected restrictPaths to reject /allowed/../secret traversal, got none")
+	}
+	if !strings.Contains(err.Error(), "path /allowed/../secret/test.jpg is not in allowed paths list") {
+		t.Fatalf("expected restrictPaths validation error, got: %v", err)
 	}
 }

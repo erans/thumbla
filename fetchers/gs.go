@@ -12,6 +12,7 @@ import (
 	"cloud.google.com/go/storage"
 	"google.golang.org/api/option"
 
+	"github.com/erans/thumbla/config"
 	"github.com/erans/thumbla/utils"
 	"github.com/gofiber/fiber/v2"
 )
@@ -114,9 +115,16 @@ func (fetcher *GoogleStroageFetcher) Fetch(c *fiber.Ctx, url string) (io.Reader,
 	}
 	defer reader.Close()
 
-	var buf []byte
-	if buf, err = io.ReadAll(reader); err != nil {
+	maxSize := config.GetConfig().GetMaxImageSizeBytes()
+	if objAttrs.Size > maxSize {
+		return nil, "", fmt.Errorf("object size (%d bytes) exceeds maximum (%d bytes)", objAttrs.Size, maxSize)
+	}
+	buf, err := io.ReadAll(io.LimitReader(reader, maxSize+1))
+	if err != nil {
 		return nil, "", err
+	}
+	if int64(len(buf)) > maxSize {
+		return nil, "", fmt.Errorf("object size exceeds maximum (%d bytes)", maxSize)
 	}
 
 	return bytes.NewReader(buf), contentType, nil

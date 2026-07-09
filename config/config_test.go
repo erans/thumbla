@@ -103,6 +103,118 @@ cache:
 	}
 }
 
+func TestLoadConfigRedisPasswordAndTTL(t *testing.T) {
+	// Create a temporary config file
+	tempDir, err := os.MkdirTemp("", "thumbla_config_test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	configContent := `
+cache:
+  provider: "redis"
+  redis:
+    host: "localhost:6379"
+    password: "secret"
+    ttl: 42
+`
+
+	configFile := filepath.Join(tempDir, "redis-config.yml")
+	err = os.WriteFile(configFile, []byte(configContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to write config file: %v", err)
+	}
+
+	cfg, err := LoadConfig(configFile)
+	if err != nil {
+		t.Fatalf("Failed to load config: %v", err)
+	}
+
+	if cfg.Cache.Redis.Password != "secret" {
+		t.Fatalf("Expected redis password 'secret', got '%s'", cfg.Cache.Redis.Password)
+	}
+	if cfg.GetRedisTTL() != 42 {
+		t.Fatalf("Expected redis TTL 42, got %d", cfg.GetRedisTTL())
+	}
+}
+
+func TestGetRedisTTLDefault(t *testing.T) {
+	cfg := &Config{}
+	if got := cfg.GetRedisTTL(); got != 3600 {
+		t.Fatalf("Expected default redis TTL 3600, got %d", got)
+	}
+}
+
+func TestLoadConfig_RedisPassword(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "thumbla_redis_test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	configContent := `
+cache:
+  active: true
+  provider: "redis"
+  redis:
+    host: "localhost:6379"
+    password: "s3cret"
+    ttl: 120
+`
+	configFile := filepath.Join(tempDir, "test-config.yml")
+	if err := os.WriteFile(configFile, []byte(configContent), 0644); err != nil {
+		t.Fatalf("Failed to write config file: %v", err)
+	}
+
+	cfg, err := LoadConfig(configFile)
+	if err != nil {
+		t.Fatalf("LoadConfig: %v", err)
+	}
+	if cfg.Cache.Redis.Password != "s3cret" {
+		t.Errorf("expected password 's3cret', got %q", cfg.Cache.Redis.Password)
+	}
+	if cfg.GetRedisTTL() != 120 {
+		t.Errorf("expected TTL 120, got %d", cfg.GetRedisTTL())
+	}
+}
+
+func TestLoadConfig_TrustedProxies(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "thumbla_proxy_test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	configContent := `
+server:
+  trustedProxies:
+    enabled: true
+    proxies:
+      - "10.0.0.0/8"
+      - "192.168.0.0/16"
+    proxyHeader: "X-Forwarded-For"
+`
+	configFile := filepath.Join(tempDir, "test-config.yml")
+	if err := os.WriteFile(configFile, []byte(configContent), 0644); err != nil {
+		t.Fatalf("Failed to write config file: %v", err)
+	}
+
+	cfg, err := LoadConfig(configFile)
+	if err != nil {
+		t.Fatalf("LoadConfig: %v", err)
+	}
+	if !cfg.IsTrustedProxiesEnabled() {
+		t.Fatal("expected trusted proxies to be enabled")
+	}
+	if cfg.Server.TrustedProxies.ProxyHeader != "X-Forwarded-For" {
+		t.Errorf("expected proxy header X-Forwarded-For, got %q", cfg.Server.TrustedProxies.ProxyHeader)
+	}
+	if len(cfg.Server.TrustedProxies.Proxies) != 2 {
+		t.Fatalf("expected two trusted proxy entries, got %d", len(cfg.Server.TrustedProxies.Proxies))
+	}
+}
+
 func TestLoadConfig_InvalidFile(t *testing.T) {
 	_, err := LoadConfig("/nonexistent/config.yml")
 	if err == nil {

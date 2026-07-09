@@ -8,17 +8,16 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"net"
 	"net/http"
 	"net/url"
-	"strings"
 	"time"
 
 	"github.com/andybalholm/brotli"
 	"github.com/erans/thumbla/config"
+	"github.com/erans/thumbla/httpclient"
 	"github.com/erans/thumbla/utils"
-	"github.com/klauspost/compress/zstd"
 	"github.com/gofiber/fiber/v2"
+	"github.com/klauspost/compress/zstd"
 )
 
 // HTTPFetcher fetches content from http/https sources
@@ -29,57 +28,10 @@ type HTTPFetcher struct {
 	UserName string
 	Password string
 
-	Secure                 bool
-	RestrictHosts          []string
-	RestrictPaths          []string
-	DisableSSRFProtection  bool
-}
-
-// isPrivateOrLocalIP checks if an IP address is private, localhost, or link-local
-func isPrivateOrLocalIP(ip net.IP) bool {
-	// Define private IP ranges
-	privateRanges := []net.IPNet{
-		{IP: net.IPv4(10, 0, 0, 0), Mask: net.IPv4Mask(255, 0, 0, 0)},         // 10.0.0.0/8
-		{IP: net.IPv4(172, 16, 0, 0), Mask: net.IPv4Mask(255, 240, 0, 0)},     // 172.16.0.0/12
-		{IP: net.IPv4(192, 168, 0, 0), Mask: net.IPv4Mask(255, 255, 0, 0)},    // 192.168.0.0/16
-		{IP: net.IPv4(127, 0, 0, 0), Mask: net.IPv4Mask(255, 0, 0, 0)},        // 127.0.0.0/8 (localhost)
-		{IP: net.IPv4(169, 254, 0, 0), Mask: net.IPv4Mask(255, 255, 0, 0)},    // 169.254.0.0/16 (link-local)
-	}
-
-	// Check IPv4 private ranges
-	for _, privateRange := range privateRanges {
-		if privateRange.Contains(ip) {
-			return true
-		}
-	}
-
-	// Check IPv6 localhost and private ranges
-	if ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
-		return true
-	}
-
-	return false
-}
-
-// isDangerousPort checks if a port is commonly used for internal services
-func isDangerousPort(port string) bool {
-	dangerousPorts := map[string]bool{
-		"22":   true, // SSH
-		"23":   true, // Telnet
-		"25":   true, // SMTP
-		"53":   true, // DNS
-		"110":  true, // POP3
-		"143":  true, // IMAP
-		"993":  true, // IMAPS
-		"995":  true, // POP3S
-		"1433": true, // MSSQL
-		"3306": true, // MySQL
-		"5432": true, // PostgreSQL
-		"6379": true, // Redis
-		"11211": true, // Memcached
-		"27017": true, // MongoDB
-	}
-	return dangerousPorts[port]
+	Secure                bool
+	RestrictHosts         []string
+	RestrictPaths         []string
+	DisableSSRFProtection bool
 }
 
 // Fetch returns content from http/https sources
@@ -88,72 +40,31 @@ func (fetcher *HTTPFetcher) Fetch(c *fiber.Ctx, fetchURL string) (io.Reader, str
 	var response *http.Response
 	var err error
 
-	// Parse URL for validation
+	// Build shared SSRF-safe options once so the initial URL and redirect targets
+	// are validated with identical rules.
+	clientOpts := httpclient.Options{
+		TimeoutSeconds:        config.GetConfig().GetHTTPTimeout(),
+		MaxBytes:              config.GetConfig().GetMaxImageSizeBytes(),
+		RestrictHosts:         fetcher.RestrictHosts,
+		RestrictPaths:         fetcher.RestrictPaths,
+		DisableSSRFProtection: fetcher.DisableSSRFProtection,
+	}
+	client := httpclient.NewClient(clientOpts)
+
+	// Validate the *initial* URL up front. CheckRedirect only runs on redirects;
+	// DialContext only sees host:port and cannot enforce RestrictHosts or
+	// RestrictPaths for the first request.
 	parsedURL, err := url.Parse(fetchURL)
 	if err != nil {
 		return nil, "", fmt.Errorf("invalid URL: %w", err)
 	}
-
-	// SSRF Protection: Resolve hostname to IP and check for private/local addresses
-	// Skip SSRF protection if disabled (for testing)
-	if !fetcher.DisableSSRFProtection {
-		host := parsedURL.Hostname()
-		port := parsedURL.Port()
-
-		// Check for dangerous ports
-		if port != "" && isDangerousPort(port) {
-			return nil, "", fmt.Errorf("access to port %s is not allowed for security reasons", port)
-		}
-
-		// Resolve hostname to IP addresses
-		ips, err := net.LookupIP(host)
-		if err != nil {
-			return nil, "", fmt.Errorf("failed to resolve hostname %s: %w", host, err)
-		}
-
-		// Check if any resolved IP is private or local
-		for _, ip := range ips {
-			if isPrivateOrLocalIP(ip) {
-				return nil, "", fmt.Errorf("access to private/local IP %s (resolved from %s) is not allowed for security reasons", ip.String(), host)
-			}
-		}
-	}
-
-	// Check host restrictions
-	if len(fetcher.RestrictHosts) > 0 {
-		hostAllowed := false
-		for _, allowedHost := range fetcher.RestrictHosts {
-			if parsedURL.Host == allowedHost || strings.HasSuffix(parsedURL.Host, "."+allowedHost) {
-				hostAllowed = true
-				break
-			}
-		}
-		if !hostAllowed {
-			return nil, "", fmt.Errorf("host %s is not in allowed hosts list", parsedURL.Host)
-		}
-	}
-
-	// Check path restrictions
-	if len(fetcher.RestrictPaths) > 0 {
-		pathAllowed := false
-		for _, allowedPath := range fetcher.RestrictPaths {
-			if strings.HasPrefix(parsedURL.Path, allowedPath) {
-				pathAllowed = true
-				break
-			}
-		}
-		if !pathAllowed {
-			return nil, "", fmt.Errorf("path %s is not in allowed paths list", parsedURL.Path)
-		}
-	}
-
-	client := &http.Client{
-		Timeout: time.Duration(config.GetConfig().GetHTTPTimeout()) * time.Second,
+	if err := httpclient.ValidateURL(parsedURL, clientOpts); err != nil {
+		return nil, "", err
 	}
 
 	// Create context with timeout for better resource management
 	ctx, cancel := context.WithTimeout(context.Background(),
-		time.Duration(config.GetConfig().GetHTTPTimeout()) * time.Second)
+		time.Duration(config.GetConfig().GetHTTPTimeout())*time.Second)
 	defer cancel() // Ensure context is cancelled to prevent resource leaks
 
 	if request, err = http.NewRequestWithContext(ctx, "GET", fetchURL, nil); err != nil {
@@ -203,9 +114,10 @@ func (fetcher *HTTPFetcher) Fetch(c *fiber.Ctx, fetchURL string) (io.Reader, str
 		reader = response.Body
 	}
 
+	maxSize := config.GetConfig().GetMaxImageSizeBytes()
+
 	// Check content length before reading to prevent memory exhaustion
 	if response.ContentLength > 0 {
-		maxSize := config.GetConfig().GetMaxImageSizeBytes()
 		if response.ContentLength > maxSize {
 			return nil, "", fmt.Errorf("image size (%d bytes) exceeds maximum allowed size (%d bytes)",
 				response.ContentLength, maxSize)
@@ -213,14 +125,14 @@ func (fetcher *HTTPFetcher) Fetch(c *fiber.Ctx, fetchURL string) (io.Reader, str
 	}
 
 	var buf []byte
-	if buf, err = io.ReadAll(io.LimitReader(reader, config.GetConfig().GetMaxImageSizeBytes())); err != nil {
+	if buf, err = io.ReadAll(io.LimitReader(reader, maxSize+1)); err != nil {
 		return nil, "", err
 	}
 
 	// Double-check actual size read
-	if int64(len(buf)) > config.GetConfig().GetMaxImageSizeBytes() {
+	if int64(len(buf)) > maxSize {
 		return nil, "", fmt.Errorf("image size (%d bytes) exceeds maximum allowed size (%d bytes)",
-			len(buf), config.GetConfig().GetMaxImageSizeBytes())
+			len(buf), maxSize)
 	}
 
 	var contentType = response.Header.Get("Content-Type")

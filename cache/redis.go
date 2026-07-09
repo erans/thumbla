@@ -48,41 +48,59 @@ func (r *RedisCache) Get(key string) interface{} {
 	return result
 }
 
-// Set saves an item into Redis cache
-func (r *RedisCache) Set(key string, value interface{}) {
-	// Convert value to JSON for storage
-	jsonVal, err := json.Marshal(value)
+// GetBytes returns the raw bytes stored for key.
+func (r *RedisCache) GetBytes(key string) ([]byte, bool) {
+	val, err := r.client.Get(r.ctx, key).Bytes()
 	if err != nil {
-		return
+		return nil, false
 	}
+	r.client.ZIncrBy(r.ctx, "cache_access", 1, key)
+	return val, true
+}
 
-	// Store the value
-	r.client.Set(r.ctx, key, jsonVal, 0)
-
-	// Add/update access count for LRU
+// SetBytes stores raw bytes with the configured TTL.
+func (r *RedisCache) SetBytes(key string, value []byte) {
+	ttl := time.Duration(config.GetConfig().GetRedisTTL()) * time.Second
+	r.client.Set(r.ctx, key, value, ttl)
 	r.client.ZAdd(r.ctx, "cache_access", redis.Z{
 		Score:  float64(time.Now().Unix()),
 		Member: key,
 	})
+	r.enforceMaxSize()
+}
 
-	// Always enforce cache size limits for security (prevent unlimited growth)
-	// Use a reasonable default if not configured or set to unlimited
+// Set marshals value to JSON and delegates to SetBytes.
+func (r *RedisCache) Set(key string, value interface{}) {
+	jsonVal, err := json.Marshal(value)
+	if err != nil {
+		return
+	}
+	r.SetBytes(key, jsonVal)
+}
+
+// enforceMaxSize trims the LRU set and deletes the corresponding data keys.
+func (r *RedisCache) enforceMaxSize() {
 	maxSize := r.maxLRUSize
 	if maxSize <= 0 {
-		maxSize = 10000 // Default to 10,000 cache entries
+		maxSize = 10000
 	}
-
-	if maxSize > 0 {
-		// Trim to max size if needed
-		count, err := r.client.ZCard(r.ctx, "cache_access").Result()
-		if err == nil && count > 0 {
-			// Remove oldest entries if we exceed cache size
-			if count > int64(maxSize) {
-				// Calculate how many items to remove
-				toRemove := count - int64(maxSize)
-				r.client.ZPopMin(r.ctx, "cache_access", toRemove)
-			}
+	count, err := r.client.ZCard(r.ctx, "cache_access").Result()
+	if err != nil || count <= int64(maxSize) {
+		return
+	}
+	toRemove := count - int64(maxSize)
+	members, err := r.client.ZPopMin(r.ctx, "cache_access", toRemove).Result()
+	if err != nil {
+		return
+	}
+	keys := make([]string, 0, len(members))
+	for _, z := range members {
+		if s, ok := z.Member.(string); ok {
+			keys = append(keys, s)
 		}
+	}
+	if len(keys) > 0 {
+		r.client.Del(r.ctx, keys...)
 	}
 }
 

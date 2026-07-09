@@ -28,6 +28,51 @@ import (
 	"github.com/erans/thumbla/utils"
 )
 
+// checkImageDimensions reads format config from body and rejects images
+// exceeding maxImageDimension before the full pixel buffer is allocated.
+// DecodeConfig consumes bytes, so this function reads the already-size-limited
+// body into memory once and returns a fresh reader over the full data.
+func checkImageDimensions(contentType string, body io.Reader) (io.Reader, error) {
+	data, err := io.ReadAll(body)
+	if err != nil {
+		return nil, err
+	}
+
+	maxDim := config.GetConfig().GetMaxImageDimension()
+	configReader := bytes.NewReader(data)
+
+	var w, h int
+	var cfgErr error
+	switch contentType {
+	case "image/jpeg", "image/jpg":
+		var c image.Config
+		c, cfgErr = jpeg.DecodeConfig(configReader)
+		w, h = c.Width, c.Height
+	case "image/png":
+		var c image.Config
+		c, cfgErr = png.DecodeConfig(configReader)
+		w, h = c.Width, c.Height
+	case "image/webp":
+		var c image.Config
+		c, cfgErr = webp.DecodeConfig(configReader)
+		w, h = c.Width, c.Height
+	case "image/gif":
+		var c image.Config
+		c, cfgErr = gif.DecodeConfig(configReader)
+		w, h = c.Width, c.Height
+	default:
+		return bytes.NewReader(data), nil
+	}
+	if cfgErr != nil {
+		return nil, fmt.Errorf("failed to read image config: %w", cfgErr)
+	}
+	if w > maxDim || h > maxDim || w <= 0 || h <= 0 {
+		return nil, fmt.Errorf("image dimensions (%dx%d) exceed maximum allowed size (%dx%d)",
+			w, h, maxDim, maxDim)
+	}
+	return bytes.NewReader(data), nil
+}
+
 type manipulatorAction struct {
 	Name   string
 	Params map[string]string
@@ -48,6 +93,13 @@ func loadImage(c *fiber.Ctx, url string, contentType string, body io.Reader, alt
 		return nil, fmt.Errorf("content Type is missing and could not be inferred")
 	}
 
+	if contentType != "image/svg+xml" {
+		body, err = checkImageDimensions(contentType, body)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	if contentType == "image/jpeg" || contentType == "image/jpg" {
 		img, err = jpeg.Decode(body)
 	} else if contentType == "image/png" {
@@ -59,8 +111,22 @@ func loadImage(c *fiber.Ctx, url string, contentType string, body io.Reader, alt
 	} else if contentType == "image/svg+xml" {
 		var svgImg *oksvg.SvgIcon
 		svgImg, err = oksvg.ReadIconStream(body)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse SVG: %w", err)
+		}
 		w := int(svgImg.ViewBox.W)
 		h := int(svgImg.ViewBox.H)
+
+		maxDim := config.GetConfig().GetMaxImageDimension()
+		if w <= 0 || h <= 0 {
+			return nil, fmt.Errorf("invalid SVG dimensions: %dx%d", w, h)
+		}
+		if w > maxDim {
+			w = maxDim
+		}
+		if h > maxDim {
+			h = maxDim
+		}
 
 		ratio := math.Max(float64(w), float64(h)) / math.Min(float64(w), float64(h))
 		widthBigger := w > h
@@ -84,6 +150,14 @@ func loadImage(c *fiber.Ctx, url string, contentType string, body io.Reader, alt
 		} else {
 			h = alternativeHeight
 			w = alternativeWidth
+		}
+
+		if w <= 0 || h <= 0 {
+			return nil, fmt.Errorf("invalid SVG target dimensions: %dx%d", w, h)
+		}
+		if w > maxDim || h > maxDim {
+			return nil, fmt.Errorf("SVG target dimensions (%dx%d) exceed maximum allowed size (%dx%d)",
+				w, h, maxDim, maxDim)
 		}
 
 		svgImg.SetTarget(0, 0, float64(w), float64(h))
@@ -128,74 +202,7 @@ func loadImage(c *fiber.Ctx, url string, contentType string, body io.Reader, alt
 	return img, nil
 }
 
-// validateManipulatorParameter validates manipulator parameter values
-func validateManipulatorParameter(paramName, paramValue string) error {
-	// Validate parameter name is not too long (prevent memory exhaustion)
-	if len(paramName) > 50 {
-		return fmt.Errorf("parameter name too long: %d characters", len(paramName))
-	}
-
-	// Validate parameter value is not too long
-	if len(paramValue) > 100 {
-		return fmt.Errorf("parameter value too long: %d characters", len(paramValue))
-	}
-
-	// Check for numeric parameters and validate ranges
-	if paramValue != "" {
-		// Common numeric parameters that should have reasonable bounds
-		numericParams := map[string]struct {
-			min, max float64
-		}{
-			"w":       {1, 20000},      // width: 1px to 20,000px
-			"h":       {1, 20000},      // height: 1px to 20,000px
-			"q":       {1, 100},        // quality: 1% to 100%
-			"a":       {-360, 360},     // angle: -360° to 360°
-			"x":       {0, 20000},      // x coordinate: 0 to 20,000px
-			"y":       {0, 20000},      // y coordinate: 0 to 20,000px
-			"r":       {0, 255},        // RGB values: 0 to 255
-			"g":       {0, 255},        // RGB values: 0 to 255
-			"b":       {0, 255},        // RGB values: 0 to 255
-			"a_color": {0, 255},        // Alpha: 0 to 255
-		}
-
-		if bounds, isNumeric := numericParams[paramName]; isNumeric {
-			if val, err := strconv.ParseFloat(paramValue, 64); err == nil {
-				if val < bounds.min || val > bounds.max {
-					return fmt.Errorf("parameter %s value %g is outside valid range [%g, %g]",
-						paramName, val, bounds.min, bounds.max)
-				}
-			} else {
-				return fmt.Errorf("parameter %s requires numeric value, got: %s", paramName, paramValue)
-			}
-		}
-
-		// Validate format parameter has only allowed values
-		if paramName == "f" {
-			allowedFormats := map[string]bool{
-				"jpg":  true,
-				"jpeg": true,
-				"png":  true,
-				"webp": true,
-				"gif":  true,
-			}
-			if !allowedFormats[strings.ToLower(paramValue)] {
-				return fmt.Errorf("unsupported format: %s", paramValue)
-			}
-		}
-
-		// Validate boolean parameters
-		if paramName == "lossless" || paramName == "progressive" {
-			if paramValue != "true" && paramValue != "false" && paramValue != "1" && paramValue != "0" {
-				return fmt.Errorf("parameter %s requires boolean value (true/false/1/0), got: %s",
-					paramName, paramValue)
-			}
-		}
-	}
-
-	return nil
-}
-
-func parseManipulators(c *fiber.Ctx) []*manipulatorAction {
+func parseManipulators(c *fiber.Ctx) ([]*manipulatorAction, error) {
 	// Split / different manipulators
 	// Split : manipulator name + params
 	// Split , manipulator params
@@ -209,7 +216,7 @@ func parseManipulators(c *fiber.Ctx) []*manipulatorAction {
 
 	// There are no manipulators on the URL
 	if p == "" {
-		return nil
+		return nil, nil
 	}
 
 	var manipulatorsString = strings.Split(p, "/")
@@ -224,7 +231,7 @@ func parseManipulators(c *fiber.Ctx) []*manipulatorAction {
 		}
 
 		logger := middleware.GetLoggerFromContext(c)
-	logger.Debug().Str("manipulator", manipulatorName).Msg("Processing manipulator")
+		logger.Debug().Str("manipulator", manipulatorName).Msg("Processing manipulator")
 
 		if len(parts) > 1 {
 			manipulatorParamsString = parts[1]
@@ -244,82 +251,89 @@ func parseManipulators(c *fiber.Ctx) []*manipulatorAction {
 			if len(manipulatorParamsParts) > 1 {
 				manipulatorParamValue = manipulatorParamsParts[1]
 				if manipulatorParamValue, err = url.QueryUnescape(manipulatorParamValue); err != nil {
-					return nil
+					return nil, fmt.Errorf("invalid URL-escaped value for parameter %s: %w", manipulatorParamName, err)
 				}
 			}
 
 			logger.Debug().Str("param", manipulatorParamName).Str("value", manipulatorParamValue).Msg("Parsed parameter")
 
 			if manipulatorParamName != "" {
-				// Validate parameter values to prevent attacks
-				if err := validateManipulatorParameter(manipulatorParamName, manipulatorParamValue); err != nil {
+				if err := manipulators.ValidateParamShape(manipulatorParamName, manipulatorParamValue); err != nil {
 					logger.Warn().
 						Str("param", manipulatorParamName).
 						Str("value", manipulatorParamValue).
 						Err(err).
 						Msg("Invalid manipulator parameter")
-					return nil
+					return nil, err
 				}
 				manipulatorParams[manipulatorParamName] = manipulatorParamValue
 			}
 		}
 
 		if manipulatorName != "" {
+			m := manipulators.GetManipulatorByName(manipulatorName)
+			if m != nil {
+				if verr := m.Validate(manipulatorParams); verr != nil {
+					logger.Warn().
+						Str("manipulator", manipulatorName).
+						Err(verr).
+						Msg("Invalid manipulator parameters")
+					return nil, verr
+				}
+			}
 			result[k] = &manipulatorAction{manipulatorName, manipulatorParams}
 		}
 	}
 
-	return result
+	return result, nil
+}
+
+func localString(c *fiber.Ctx, key string) string {
+	if v, ok := c.Locals(key).(string); ok {
+		return v
+	}
+	return ""
 }
 
 func writeImageToResponse(c *fiber.Ctx, contentType string, img image.Image) error {
-
 	if contentType == "image/jpeg" || contentType == "image/jpg" {
-		var quality = 90
-		var tempQuality = c.Get("X-Quality")
-		if tempQuality != "" {
-			quality, _ = strconv.Atoi(tempQuality)
+		quality := 90
+		if q := localString(c, "X-Quality"); q != "" {
+			if n, err := strconv.Atoi(q); err == nil {
+				quality = n
+			}
 		}
-
-		c.Response().Header.Del("X-Quality")
-
-		var encoder = c.Get("X-Encoder")
-		if encoder == "" {
-			encoder = "jpeg"
+		enc := localString(c, "X-Encoder")
+		if enc == "" {
+			enc = "jpeg"
 		}
-
-		if encoder == "jpeg" {
-			jpeg.Encode(c.Response().BodyWriter(), img, &jpeg.Options{Quality: quality})
+		if enc != "jpeg" {
+			return fmt.Errorf("unsupported encoder: %s", enc)
 		}
+		jpeg.Encode(c.Response().BodyWriter(), img, &jpeg.Options{Quality: quality})
 	} else if contentType == "image/png" {
 		png.Encode(c.Response().BodyWriter(), img)
 	} else if contentType == "image/webp" {
-		var quality = 100.0
-		var tempQuality = c.Get("X-Quality")
-		if tempQuality != "" {
-			quality, _ = strconv.ParseFloat(tempQuality, 32)
+		quality := 100.0
+		if q := localString(c, "X-Quality"); q != "" {
+			if f, err := strconv.ParseFloat(q, 32); err == nil {
+				quality = f
+			}
 		}
-		//options := &chaiwebp.Options{Quality: float32(quality)}
-
 		options, err := encoder.NewLossyEncoderOptions(encoder.PresetDefault, float32(quality))
 		if err != nil {
 			return fmt.Errorf("failed to create WebP encoder options: %w", err)
 		}
-
-		var temp = c.Get("X-Lossless")
-		if temp != "" && (temp == "1" || temp == "true") {
+		if temp := localString(c, "X-Lossless"); temp == "1" || temp == "true" {
 			options.Lossless = true
 		}
-
-		temp = c.Get("X-Exact")
-		if temp != "" && (temp == "1" || temp == "true") {
+		if temp := localString(c, "X-Exact"); temp == "1" || temp == "true" {
 			options.Exact = 1
 		}
 		kolesawebp.Encode(c.Response().BodyWriter(), img, options)
 	} else {
 		return fmt.Errorf("write image to response failed. Unknown content type '%s'", contentType)
 	}
-
 	return nil
 }
 
@@ -339,7 +353,9 @@ func HandleImage(c *fiber.Ctx) error {
 	logger := middleware.GetLoggerFromContext(c)
 	logger.Debug().Str("path", c.Path()).Msg("Handling image request")
 
-	pathConfig := config.GetConfig().GetPathConfigByPath(c.Route().Path)
+	rawRequestPath := c.Route().Path
+	path := rawRequestPath[0:strings.Index(rawRequestPath, "/:url")]
+	pathConfig := config.GetConfig().GetPathConfigByPath(path)
 
 	var imageURL string
 	var err error
@@ -357,9 +373,6 @@ func HandleImage(c *fiber.Ctx) error {
 	logger.Debug().Str("routePath", c.Route().Path).Msg("Searching for fetcher")
 	logger.Debug().Str("parsedURL", parsedURL.String()).Msg("Parsed URL")
 
-	rawRequestPath := c.Route().Path
-	path := rawRequestPath[0:strings.Index(rawRequestPath, "/:url")]
-
 	var imageBody io.Reader
 	var contentType string
 
@@ -371,24 +384,42 @@ func HandleImage(c *fiber.Ctx) error {
 	imageURL, params = getFileParams(imageURL)
 
 	if strings.HasSuffix(strings.ToLower(imageURL), ".svg") {
+		if len(params) < 2 {
+			return c.Status(fiber.StatusBadRequest).SendString("SVG requests require |width,height params")
+		}
 		alternateWidth, _ = strconv.Atoi(params[0])
 		alternateHeight, _ = strconv.Atoi(params[1])
 	} else if imageURL == "_blank" {
-		if params[0] == "rgba" {
-			alternateWidth, _ = strconv.Atoi(params[1])
-			alternateHeight, _ = strconv.Atoi(params[2])
-
-			img := image.NewRGBA(image.Rectangle{image.Point{0, 0}, image.Point{alternateWidth, alternateHeight}})
-			buf := new(bytes.Buffer)
-			err := png.Encode(buf, img)
-			if err != nil {
-				return c.Status(fiber.StatusBadRequest).SendString("failed to create blank image")
-			}
-
-			imageBody = buf
-			contentType = "image/png"
-			useFetchers = false
+		if len(params) < 1 || params[0] != "rgba" {
+			return c.Status(fiber.StatusBadRequest).SendString("blank image requires |rgba,width,height params")
 		}
+		if len(params) < 3 {
+			return c.Status(fiber.StatusBadRequest).SendString("blank image requires |rgba,width,height params")
+		}
+		if alternateWidth, err = strconv.Atoi(params[1]); err != nil {
+			return c.Status(fiber.StatusBadRequest).SendString("blank image width must be an integer")
+		}
+		if alternateHeight, err = strconv.Atoi(params[2]); err != nil {
+			return c.Status(fiber.StatusBadRequest).SendString("blank image height must be an integer")
+		}
+		if alternateWidth <= 0 || alternateHeight <= 0 {
+			return c.Status(fiber.StatusBadRequest).SendString("blank image width and height must be positive")
+		}
+		maxDim := config.GetConfig().GetMaxImageDimension()
+		if alternateWidth > maxDim || alternateHeight > maxDim {
+			return c.Status(fiber.StatusBadRequest).SendString("blank image dimensions exceed maximum allowed size")
+		}
+
+		img := image.NewRGBA(image.Rectangle{image.Point{0, 0}, image.Point{alternateWidth, alternateHeight}})
+		buf := new(bytes.Buffer)
+		err := png.Encode(buf, img)
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).SendString("failed to create blank image")
+		}
+
+		imageBody = buf
+		contentType = "image/png"
+		useFetchers = false
 	}
 
 	if useFetchers {
@@ -404,6 +435,10 @@ func HandleImage(c *fiber.Ctx) error {
 		}
 	}
 
+	if closer, ok := imageBody.(io.Closer); ok {
+		defer closer.Close()
+	}
+
 	if imageBody == nil {
 		return c.Status(fiber.StatusNotFound).SendString("file not found")
 	}
@@ -415,7 +450,11 @@ func HandleImage(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).SendString(fmt.Sprintf("failed to load fetched image. url=%s", imageURL))
 	}
 
-	m := parseManipulators(c)
+	m, err := parseManipulators(c)
+	if err != nil {
+		logger.Warn().Err(err).Msg("Invalid manipulator parameters")
+		return c.Status(fiber.StatusBadRequest).SendString("Invalid manipulator parameters")
+	}
 
 	for _, action := range m {
 		logger.Debug().Str("manipulator", action.Name).Msg("Applying manipulator")

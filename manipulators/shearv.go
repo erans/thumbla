@@ -1,6 +1,7 @@
 package manipulators
 
 import (
+	"fmt"
 	"image"
 	"strconv"
 
@@ -22,6 +23,19 @@ func (manipulator *ShearVerticalManipulator) Execute(c *fiber.Ctx, params map[st
 	}
 
 	return img, nil
+}
+
+func (manipulator *ShearVerticalManipulator) Validate(params map[string]string) error {
+	if v, ok := params["a"]; ok {
+		f, err := strconv.ParseFloat(v, 64)
+		if err != nil {
+			return fmt.Errorf("parameter a requires numeric value, got: %s", v)
+		}
+		if f < -360 || f > 360 {
+			return fmt.Errorf("parameter a value %g outside [-360, 360]", f)
+		}
+	}
+	return nil
 }
 
 // NewShearVerticalManipulator returns a new shear vertical Manipulator

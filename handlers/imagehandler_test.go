@@ -257,3 +257,166 @@ func TestHandleImage_InvalidRequests(t *testing.T) {
 		})
 	}
 }
+
+func TestHandleImage_RejectsOversizedPNG(t *testing.T) {
+	tempDir, cleanup := setupTestEnvironment(t)
+	defer cleanup()
+
+	// Use a small max dimension so a 100x100 PNG exceeds it.
+	cfg := &config.Config{
+		Fetchers: []map[string]interface{}{
+			{"name": "local", "type": "local", "path": tempDir},
+		},
+		Paths:  []config.PathConfig{{Path: "/test", FetcherName: "local"}},
+		Server: config.ServerConfig{MaxImageDimension: 50, MaxImageSizeBytes: 50 * 1024 * 1024},
+	}
+	config.SetConfig(cfg)
+	fetchers.InitFetchers(cfg)
+	manipulators.InitManipulators(cfg)
+
+	app := fiber.New()
+	app.Get("/test/:url/*", HandleImage)
+
+	req := httptest.NewRequest("GET", "/test/test.png/output:f=png", nil)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	if resp.StatusCode != fiber.StatusInternalServerError {
+		t.Errorf("expected 500 for oversized image, got %d", resp.StatusCode)
+	}
+}
+
+func TestHandleImage_RejectsOversizedSVGRequestedDimensions(t *testing.T) {
+	tempDir, cleanup := setupTestEnvironment(t)
+	defer cleanup()
+
+	svgData := []byte(`<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 10 10"><rect width="10" height="10" fill="red"/></svg>`)
+	if err := os.WriteFile(filepath.Join(tempDir, "tiny.svg"), svgData, 0644); err != nil {
+		t.Fatalf("failed to write test SVG: %v", err)
+	}
+
+	app := fiber.New()
+	app.Get("/test/:url/*", HandleImage)
+
+	req := httptest.NewRequest("GET", "/test/tiny.svg%7C2000000000,2000000000/output:f=png", nil)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	if resp.StatusCode != fiber.StatusInternalServerError {
+		t.Errorf("expected 500 for oversized SVG requested dimensions, got %d", resp.StatusCode)
+	}
+}
+
+func TestHandleImage_SVGWithoutParamsReturns400(t *testing.T) {
+	_, cleanup := setupTestEnvironment(t)
+	defer cleanup()
+
+	app := fiber.New()
+	app.Get("/test/:url/*", HandleImage)
+
+	req := httptest.NewRequest("GET", "/test/something.svg", nil)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	if resp.StatusCode != fiber.StatusBadRequest {
+		t.Errorf("expected 400 for svg without params, got %d", resp.StatusCode)
+	}
+}
+
+func TestHandleImage_BlankWithoutParamsReturns400(t *testing.T) {
+	_, cleanup := setupTestEnvironment(t)
+	defer cleanup()
+
+	app := fiber.New()
+	app.Get("/test/:url/*", HandleImage)
+
+	req := httptest.NewRequest("GET", "/test/_blank", nil)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	if resp.StatusCode != fiber.StatusBadRequest {
+		t.Errorf("expected 400 for blank without params, got %d", resp.StatusCode)
+	}
+}
+
+func TestHandleImage_BlankOversizedDimensionsReturns400(t *testing.T) {
+	_, cleanup := setupTestEnvironment(t)
+	defer cleanup()
+
+	app := fiber.New()
+	app.Get("/test/:url/*", HandleImage)
+
+	req := httptest.NewRequest("GET", "/test/_blank%7Crgba,100000,100000/output:f=png", nil)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	if resp.StatusCode != fiber.StatusBadRequest {
+		t.Errorf("expected 400 for oversized blank image dimensions, got %d", resp.StatusCode)
+	}
+}
+
+func TestHandleImage_InvalidManipulatorParamsReturn400(t *testing.T) {
+	_, cleanup := setupTestEnvironment(t)
+	defer cleanup()
+
+	app := fiber.New()
+	app.Get("/test/:url/*", HandleImage)
+
+	tests := []struct {
+		name string
+		url  string
+	}{
+		{
+			name: "invalid output format",
+			url:  "/test/test.jpg/output:f=exe",
+		},
+		{
+			name: "unsupported jpeg encoder",
+			url:  "/test/test.jpg/output:f=jpg,e=guetzli",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest("GET", tt.url, nil)
+			resp, err := app.Test(req)
+			if err != nil {
+				t.Fatalf("request failed: %v", err)
+			}
+			if resp.StatusCode != fiber.StatusBadRequest {
+				t.Errorf("expected 400 for invalid manipulator params, got %d", resp.StatusCode)
+			}
+		})
+	}
+}
+
+func TestHandleImage_ResizeWithLanczosFilter(t *testing.T) {
+	_, cleanup := setupTestEnvironment(t)
+	defer cleanup()
+
+	app := fiber.New()
+	app.Get("/test/:url/*", HandleImage)
+
+	req := httptest.NewRequest("GET", "/test/test.jpg/resize:w=50,r=lanczos/output:f=jpg", nil)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("expected 200 for resize:r=lanczos, got %d (chain was dropped)", resp.StatusCode)
+	}
+
+	body, _ := io.ReadAll(resp.Body)
+	cfg, derr := jpeg.DecodeConfig(bytes.NewReader(body))
+	if derr != nil {
+		t.Fatalf("decode response: %v", derr)
+	}
+	if cfg.Width != 50 {
+		t.Errorf("expected resized width 50, got %d (manipulator chain dropped)", cfg.Width)
+	}
+}

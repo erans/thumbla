@@ -56,7 +56,7 @@ func main() {
 	// Init the cache handlers
 	cache.InitCache(cfg)
 
-	app := fiber.New(fiber.Config{
+	fiberCfg := fiber.Config{
 		BodyLimit:    int(cfg.GetMaxRequestSize()),
 		ReadTimeout:  time.Duration(cfg.GetReadTimeout()) * time.Second,
 		WriteTimeout: time.Duration(cfg.GetWriteTimeout()) * time.Second,
@@ -65,11 +65,18 @@ func main() {
 			logger.Error().Err(err).Msg("Request error")
 			return c.Status(fiber.StatusInternalServerError).SendString("Internal Server Error")
 		},
-	})
+	}
+	if cfg.IsTrustedProxiesEnabled() {
+		fiberCfg.EnableTrustedProxyCheck = true
+		fiberCfg.TrustedProxies = cfg.Server.TrustedProxies.Proxies
+		fiberCfg.ProxyHeader = cfg.Server.TrustedProxies.ProxyHeader
+		fiberCfg.EnableIPValidation = true
+	}
+	app := fiber.New(fiberCfg)
 
 	// Use zerolog middleware instead of default logger
-	app.Use(middleware.New())
 	app.Use(recover.New())
+	app.Use(middleware.New())
 
 	// Add rate limiting if enabled
 	if cfg.IsRateLimitEnabled() {

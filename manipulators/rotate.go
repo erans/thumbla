@@ -1,6 +1,7 @@
 package manipulators
 
 import (
+	"fmt"
 	"image"
 	"log"
 	"net/url"
@@ -61,6 +62,24 @@ func (manipulator *RotateManipulator) Execute(c *fiber.Ctx, params map[string]st
 	}
 
 	return img, nil
+}
+
+func (manipulator *RotateManipulator) Validate(params map[string]string) error {
+	if v, ok := params["a"]; ok {
+		f, err := strconv.ParseFloat(v, 64)
+		if err != nil {
+			return fmt.Errorf("parameter a requires numeric value, got: %s", v)
+		}
+		if f < -360 || f > 360 {
+			return fmt.Errorf("parameter a value %g outside [-360, 360]", f)
+		}
+	}
+	if v, ok := params["r"]; ok {
+		if v != "0" && v != "1" {
+			return fmt.Errorf("parameter r must be 0 or 1, got: %s", v)
+		}
+	}
+	return nil
 }
 
 // NewRotateManipulator returns a new Rotate Manipulator
