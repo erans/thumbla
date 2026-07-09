@@ -1,10 +1,16 @@
 package manipulators
 
 import (
+	"bytes"
 	"fmt"
 	"image"
 	"image/draw"
+	_ "image/gif"
+	_ "image/jpeg"
+	_ "image/png"
 	"io"
+
+	_ "golang.org/x/image/webp"
 
 	"github.com/erans/thumbla/config"
 	"github.com/erans/thumbla/httpclient"
@@ -53,6 +59,34 @@ var alignmentRegistry = map[string]func(b image.Rectangle, bb image.Rectangle) i
 	},
 }
 
+func decodePastedImage(body io.Reader) (image.Image, error) {
+	maxSize := config.GetConfig().GetMaxImageSizeBytes()
+	data, err := io.ReadAll(io.LimitReader(body, maxSize+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(data)) > maxSize {
+		return nil, fmt.Errorf("paste image size (%d bytes) exceeds maximum allowed size (%d bytes)", len(data), maxSize)
+	}
+
+	cfg, _, err := image.DecodeConfig(bytes.NewReader(data))
+	if err != nil {
+		return nil, err
+	}
+
+	maxDim := config.GetConfig().GetMaxImageDimension()
+	if cfg.Width <= 0 || cfg.Height <= 0 || cfg.Width > maxDim || cfg.Height > maxDim {
+		return nil, fmt.Errorf("paste image dimensions (%dx%d) exceed maximum allowed size (%dx%d)",
+			cfg.Width, cfg.Height, maxDim, maxDim)
+	}
+
+	pastedImg, _, err := image.Decode(bytes.NewReader(data))
+	if err != nil {
+		return nil, err
+	}
+	return pastedImg, nil
+}
+
 // Execute runs the paste manipulator
 func (manipulator *PasteManipulator) Execute(c *fiber.Ctx, params map[string]string, img image.Image) (image.Image, error) {
 	if imgUrl, ok := params["img"]; ok {
@@ -70,8 +104,7 @@ func (manipulator *PasteManipulator) Execute(c *fiber.Ctx, params map[string]str
 			return nil, fmt.Errorf("paste: fetch returned HTTP %d", response.StatusCode)
 		}
 
-		limited := io.LimitReader(response.Body, config.GetConfig().GetMaxImageSizeBytes())
-		pastedImg, _, err := image.Decode(limited)
+		pastedImg, err := decodePastedImage(response.Body)
 		if err != nil {
 			return nil, err
 		}

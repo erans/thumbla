@@ -78,6 +78,9 @@ func (manipulator *OutputManipulator) Validate(params map[string]string) error {
 			return err
 		}
 	}
+	if v, ok := params["e"]; ok && v != "" && v != "jpeg" {
+		return fmt.Errorf("unsupported encoder: %s", v)
+	}
 	for _, b := range []string{"lossless", "exact", "progressive"} {
 		if v, ok := params[b]; ok {
 			if v != "true" && v != "false" && v != "1" && v != "0" {

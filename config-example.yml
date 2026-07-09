@@ -93,5 +93,5 @@ cache:
     host: localhost
     port: 6379
     db: 0
-    # expiration in seconds
-    expiration: 3600
+    # ttl in seconds
+    ttl: 3600

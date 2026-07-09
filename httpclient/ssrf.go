@@ -29,21 +29,35 @@ type Options struct {
 	DisableSSRFProtection bool // test-only: bypasses IP/port checks
 }
 
-// IsPrivateOrLocalIP reports whether ip is loopback, private, or link-local.
+// IsPrivateOrLocalIP reports whether ip is private, local, multicast, or otherwise unsafe for SSRF fetches.
 func IsPrivateOrLocalIP(ip net.IP) bool {
+	if ip == nil {
+		return true
+	}
+
+	if ip.IsPrivate() || ip.IsLoopback() || ip.IsUnspecified() ||
+		ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsMulticast() {
+		return true
+	}
+
 	privateRanges := []net.IPNet{
-		{IP: net.IPv4(10, 0, 0, 0), Mask: net.IPv4Mask(255, 0, 0, 0)},
-		{IP: net.IPv4(172, 16, 0, 0), Mask: net.IPv4Mask(255, 240, 0, 0)},
-		{IP: net.IPv4(192, 168, 0, 0), Mask: net.IPv4Mask(255, 255, 0, 0)},
-		{IP: net.IPv4(127, 0, 0, 0), Mask: net.IPv4Mask(255, 0, 0, 0)},
-		{IP: net.IPv4(169, 254, 0, 0), Mask: net.IPv4Mask(255, 255, 0, 0)},
+		{IP: net.IPv4(0, 0, 0, 0), Mask: net.IPv4Mask(255, 0, 0, 0)},       // this network
+		{IP: net.IPv4(10, 0, 0, 0), Mask: net.IPv4Mask(255, 0, 0, 0)},      // RFC1918
+		{IP: net.IPv4(100, 64, 0, 0), Mask: net.IPv4Mask(255, 192, 0, 0)},  // carrier-grade NAT
+		{IP: net.IPv4(127, 0, 0, 0), Mask: net.IPv4Mask(255, 0, 0, 0)},     // loopback
+		{IP: net.IPv4(169, 254, 0, 0), Mask: net.IPv4Mask(255, 255, 0, 0)}, // link-local
+		{IP: net.IPv4(172, 16, 0, 0), Mask: net.IPv4Mask(255, 240, 0, 0)},  // RFC1918
+		{IP: net.IPv4(192, 168, 0, 0), Mask: net.IPv4Mask(255, 255, 0, 0)}, // RFC1918
+		{IP: net.IPv4(198, 18, 0, 0), Mask: net.IPv4Mask(255, 254, 0, 0)},  // benchmarking networks
+		{IP: net.IPv4(224, 0, 0, 0), Mask: net.IPv4Mask(240, 0, 0, 0)},     // multicast
+		{IP: net.IPv4(240, 0, 0, 0), Mask: net.IPv4Mask(240, 0, 0, 0)},     // reserved
 	}
 	for _, r := range privateRanges {
 		if r.Contains(ip) {
 			return true
 		}
 	}
-	return ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast()
+	return false
 }
 
 // IsDangerousPort reports whether port is commonly an internal service.

@@ -17,8 +17,13 @@ func TestIsPrivateOrLocalIP(t *testing.T) {
 		{"172.16.0.1", true},
 		{"192.168.1.1", true},
 		{"169.254.169.254", true}, // cloud metadata
+		{"0.0.0.0", true},         // IPv4 unspecified
+		{"224.0.0.1", true},       // IPv4 multicast
+		{"::", true},              // IPv6 unspecified
 		{"::1", true},             // IPv6 loopback
 		{"fe80::1", true},         // IPv6 link-local
+		{"fd00::1", true},         // IPv6 ULA
+		{"fc00::1", true},         // IPv6 ULA
 		{"8.8.8.8", false},        // public
 		{"1.1.1.1", false},        // public
 	}
@@ -29,6 +34,10 @@ func TestIsPrivateOrLocalIP(t *testing.T) {
 				t.Errorf("IsPrivateOrLocalIP(%s) = %v, want %v", tt.ip, got, tt.private)
 			}
 		})
+	}
+
+	if !IsPrivateOrLocalIP(nil) {
+		t.Error("IsPrivateOrLocalIP(nil) = false, want true")
 	}
 }
 

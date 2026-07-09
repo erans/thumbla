@@ -343,6 +343,58 @@ func TestHandleImage_BlankWithoutParamsReturns400(t *testing.T) {
 	}
 }
 
+func TestHandleImage_BlankOversizedDimensionsReturns400(t *testing.T) {
+	_, cleanup := setupTestEnvironment(t)
+	defer cleanup()
+
+	app := fiber.New()
+	app.Get("/test/:url/*", HandleImage)
+
+	req := httptest.NewRequest("GET", "/test/_blank%7Crgba,100000,100000/output:f=png", nil)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	if resp.StatusCode != fiber.StatusBadRequest {
+		t.Errorf("expected 400 for oversized blank image dimensions, got %d", resp.StatusCode)
+	}
+}
+
+func TestHandleImage_InvalidManipulatorParamsReturn400(t *testing.T) {
+	_, cleanup := setupTestEnvironment(t)
+	defer cleanup()
+
+	app := fiber.New()
+	app.Get("/test/:url/*", HandleImage)
+
+	tests := []struct {
+		name string
+		url  string
+	}{
+		{
+			name: "invalid output format",
+			url:  "/test/test.jpg/output:f=exe",
+		},
+		{
+			name: "unsupported jpeg encoder",
+			url:  "/test/test.jpg/output:f=jpg,e=guetzli",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest("GET", tt.url, nil)
+			resp, err := app.Test(req)
+			if err != nil {
+				t.Fatalf("request failed: %v", err)
+			}
+			if resp.StatusCode != fiber.StatusBadRequest {
+				t.Errorf("expected 400 for invalid manipulator params, got %d", resp.StatusCode)
+			}
+		})
+	}
+}
+
 func TestHandleImage_ResizeWithLanczosFilter(t *testing.T) {
 	_, cleanup := setupTestEnvironment(t)
 	defer cleanup()

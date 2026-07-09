@@ -102,6 +102,16 @@ func TestOutputManipulator_UnsupportedFormat(t *testing.T) {
 	}
 }
 
+func TestOutputManipulator_ValidateRejectsUnsupportedEncoder(t *testing.T) {
+	cfg := &config.Config{}
+	m := NewOutputManipulator(cfg)
+
+	err := m.Validate(map[string]string{"f": "jpg", "e": "guetzli"})
+	if err == nil {
+		t.Fatal("expected validation error for unsupported encoder guetzli, got nil")
+	}
+}
+
 func TestOutputManipulator_QualityRecordedInLocals(t *testing.T) {
 	cfg := &config.Config{}
 	m := NewOutputManipulator(cfg)

@@ -114,9 +114,10 @@ func (fetcher *HTTPFetcher) Fetch(c *fiber.Ctx, fetchURL string) (io.Reader, str
 		reader = response.Body
 	}
 
+	maxSize := config.GetConfig().GetMaxImageSizeBytes()
+
 	// Check content length before reading to prevent memory exhaustion
 	if response.ContentLength > 0 {
-		maxSize := config.GetConfig().GetMaxImageSizeBytes()
 		if response.ContentLength > maxSize {
 			return nil, "", fmt.Errorf("image size (%d bytes) exceeds maximum allowed size (%d bytes)",
 				response.ContentLength, maxSize)
@@ -124,14 +125,14 @@ func (fetcher *HTTPFetcher) Fetch(c *fiber.Ctx, fetchURL string) (io.Reader, str
 	}
 
 	var buf []byte
-	if buf, err = io.ReadAll(io.LimitReader(reader, config.GetConfig().GetMaxImageSizeBytes())); err != nil {
+	if buf, err = io.ReadAll(io.LimitReader(reader, maxSize+1)); err != nil {
 		return nil, "", err
 	}
 
 	// Double-check actual size read
-	if int64(len(buf)) > config.GetConfig().GetMaxImageSizeBytes() {
+	if int64(len(buf)) > maxSize {
 		return nil, "", fmt.Errorf("image size (%d bytes) exceeds maximum allowed size (%d bytes)",
-			len(buf), config.GetConfig().GetMaxImageSizeBytes())
+			len(buf), maxSize)
 	}
 
 	var contentType = response.Header.Get("Content-Type")

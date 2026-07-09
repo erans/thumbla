@@ -202,7 +202,7 @@ func loadImage(c *fiber.Ctx, url string, contentType string, body io.Reader, alt
 	return img, nil
 }
 
-func parseManipulators(c *fiber.Ctx) []*manipulatorAction {
+func parseManipulators(c *fiber.Ctx) ([]*manipulatorAction, error) {
 	// Split / different manipulators
 	// Split : manipulator name + params
 	// Split , manipulator params
@@ -216,7 +216,7 @@ func parseManipulators(c *fiber.Ctx) []*manipulatorAction {
 
 	// There are no manipulators on the URL
 	if p == "" {
-		return nil
+		return nil, nil
 	}
 
 	var manipulatorsString = strings.Split(p, "/")
@@ -251,7 +251,7 @@ func parseManipulators(c *fiber.Ctx) []*manipulatorAction {
 			if len(manipulatorParamsParts) > 1 {
 				manipulatorParamValue = manipulatorParamsParts[1]
 				if manipulatorParamValue, err = url.QueryUnescape(manipulatorParamValue); err != nil {
-					return nil
+					return nil, fmt.Errorf("invalid URL-escaped value for parameter %s: %w", manipulatorParamName, err)
 				}
 			}
 
@@ -264,7 +264,7 @@ func parseManipulators(c *fiber.Ctx) []*manipulatorAction {
 						Str("value", manipulatorParamValue).
 						Err(err).
 						Msg("Invalid manipulator parameter")
-					return nil
+					return nil, err
 				}
 				manipulatorParams[manipulatorParamName] = manipulatorParamValue
 			}
@@ -278,14 +278,14 @@ func parseManipulators(c *fiber.Ctx) []*manipulatorAction {
 						Str("manipulator", manipulatorName).
 						Err(verr).
 						Msg("Invalid manipulator parameters")
-					return nil
+					return nil, verr
 				}
 			}
 			result[k] = &manipulatorAction{manipulatorName, manipulatorParams}
 		}
 	}
 
-	return result
+	return result, nil
 }
 
 func localString(c *fiber.Ctx, key string) string {
@@ -396,8 +396,19 @@ func HandleImage(c *fiber.Ctx) error {
 		if len(params) < 3 {
 			return c.Status(fiber.StatusBadRequest).SendString("blank image requires |rgba,width,height params")
 		}
-		alternateWidth, _ = strconv.Atoi(params[1])
-		alternateHeight, _ = strconv.Atoi(params[2])
+		if alternateWidth, err = strconv.Atoi(params[1]); err != nil {
+			return c.Status(fiber.StatusBadRequest).SendString("blank image width must be an integer")
+		}
+		if alternateHeight, err = strconv.Atoi(params[2]); err != nil {
+			return c.Status(fiber.StatusBadRequest).SendString("blank image height must be an integer")
+		}
+		if alternateWidth <= 0 || alternateHeight <= 0 {
+			return c.Status(fiber.StatusBadRequest).SendString("blank image width and height must be positive")
+		}
+		maxDim := config.GetConfig().GetMaxImageDimension()
+		if alternateWidth > maxDim || alternateHeight > maxDim {
+			return c.Status(fiber.StatusBadRequest).SendString("blank image dimensions exceed maximum allowed size")
+		}
 
 		img := image.NewRGBA(image.Rectangle{image.Point{0, 0}, image.Point{alternateWidth, alternateHeight}})
 		buf := new(bytes.Buffer)
@@ -439,7 +450,11 @@ func HandleImage(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).SendString(fmt.Sprintf("failed to load fetched image. url=%s", imageURL))
 	}
 
-	m := parseManipulators(c)
+	m, err := parseManipulators(c)
+	if err != nil {
+		logger.Warn().Err(err).Msg("Invalid manipulator parameters")
+		return c.Status(fiber.StatusBadRequest).SendString("Invalid manipulator parameters")
+	}
 
 	for _, action := range m {
 		logger.Debug().Str("manipulator", action.Name).Msg("Applying manipulator")

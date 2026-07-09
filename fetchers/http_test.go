@@ -109,6 +109,36 @@ func TestHTTPFetcher(t *testing.T) {
 	}
 }
 
+func TestHTTPFetcher_RejectsBodyLargerThanMaxImageSizeBytes(t *testing.T) {
+	cfg := &config.Config{Server: config.ServerConfig{HTTPTimeout: 30, MaxImageSizeBytes: 10}}
+	config.SetConfig(cfg)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "image/jpeg")
+		w.WriteHeader(http.StatusOK)
+		if flusher, ok := w.(http.Flusher); ok {
+			flusher.Flush() // force chunked response so ContentLength is unknown
+		}
+		_, _ = w.Write([]byte(strings.Repeat("x", 11)))
+	}))
+	defer server.Close()
+
+	fetcher := NewHTTPFetcher(map[string]interface{}{
+		"name":                  "testHTTP",
+		"type":                  "http",
+		"disableSSRFProtection": true,
+	})
+
+	var ctx *fiber.Ctx
+	_, _, err := fetcher.Fetch(ctx, server.URL+"/oversized.jpg")
+	if err == nil {
+		t.Fatal("expected error for response body larger than MaxImageSizeBytes, got nil")
+	}
+	if !strings.Contains(err.Error(), "exceeds maximum allowed size") {
+		t.Fatalf("expected max image size error, got: %v", err)
+	}
+}
+
 func TestHTTPFetcher_RestrictPaths(t *testing.T) {
 	// Set up test config for HTTP timeout
 	cfg := &config.Config{
