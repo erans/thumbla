@@ -1,7 +1,10 @@
 // Package httpclient provides a shared SSRF-safe HTTP client used by all
 // HTTP-fetching code in thumbla. It validates the resolved IP at connect time
 // (closing the DNS-rebinding TOCTOU) and re-validates host/path/port on every
-// redirect (closing the redirect-following bypass).
+// redirect (closing the redirect-following bypass). Callers MUST also call
+// ValidateURL on the initial request URL before issuing it, to enforce
+// RestrictHosts/RestrictPaths on the first request (CheckRedirect only runs
+// on redirects).
 package httpclient
 
 import (
@@ -53,9 +56,13 @@ func IsDangerousPort(port string) bool {
 	return dangerousPorts[port]
 }
 
-// validateURL runs host/path/port checks against a URL. It is called for the
-// initial request and for every redirect target.
-func validateURL(u *url.URL, opts Options) error {
+// ValidateURL runs host/path/port/IP checks against a URL. It is the
+// single source of truth for URL-level SSRF validation: CheckRedirect calls
+// it on every redirect target, and callers MUST call it on the initial
+// request URL before issuing the request (the *http.Client has no hook to
+// validate the first URL's host/path before dial; DialContext only sees
+// host:port and only enforces IP/port). Returns nil if the URL is allowed.
+func ValidateURL(u *url.URL, opts Options) error {
 	host := u.Hostname()
 	port := u.Port()
 
@@ -144,7 +151,7 @@ func NewClient(opts Options) *http.Client {
 		Timeout:   timeout,
 		Transport: transport,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			if err := validateURL(req.URL, opts); err != nil {
+			if err := ValidateURL(req.URL, opts); err != nil {
 				return err
 			}
 			if len(via) >= 10 {

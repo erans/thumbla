@@ -1,10 +1,9 @@
 package httpclient
 
 import (
-	"io"
 	"net"
 	"net/http"
-	"net/http/httptest"
+	"net/url"
 	"testing"
 )
 
@@ -18,10 +17,10 @@ func TestIsPrivateOrLocalIP(t *testing.T) {
 		{"172.16.0.1", true},
 		{"192.168.1.1", true},
 		{"169.254.169.254", true}, // cloud metadata
-		{"::1", true},            // IPv6 loopback
-		{"fe80::1", true},        // IPv6 link-local
-		{"8.8.8.8", false},       // public
-		{"1.1.1.1", false},       // public
+		{"::1", true},             // IPv6 loopback
+		{"fe80::1", true},         // IPv6 link-local
+		{"8.8.8.8", false},        // public
+		{"1.1.1.1", false},        // public
 	}
 	for _, tt := range tests {
 		t.Run(tt.ip, func(t *testing.T) {
@@ -48,20 +47,61 @@ func TestIsDangerousPort(t *testing.T) {
 	}
 }
 
-// A redirect to a loopback address must be blocked even though the initial
-// host (the test server) is reachable and public-ish on the dial path.
-func TestNewClient_BlocksRedirectToLoopback(t *testing.T) {
-	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Location", "http://127.0.0.1:6379/")
-		w.WriteHeader(http.StatusFound)
-	}))
-	defer target.Close()
+// TestNewClient_CheckRedirect_BlocksLoopback exercises the redirect policy
+// directly (no network): CheckRedirect must reject a redirect target whose
+// host resolves to a loopback/private IP. Calling client.CheckRedirect
+// directly avoids the false-pass where the *initial* dial to a 127.0.0.1
+// test server is blocked before any redirect occurs.
+func TestNewClient_CheckRedirect_BlocksLoopback(t *testing.T) {
+	client := NewClient(Options{TimeoutSeconds: 5})
+	req, err := http.NewRequest("GET", "http://127.0.0.1:6379/", nil)
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	prev, err := http.NewRequest("GET", "http://8.8.8.8/", nil)
+	if err != nil {
+		t.Fatalf("new prev request: %v", err)
+	}
+	if err := client.CheckRedirect(req, []*http.Request{prev}); err == nil {
+		t.Fatal("expected CheckRedirect to reject loopback redirect target, got nil")
+	}
+}
 
-	client := NewClient(Options{TimeoutSeconds: 5, DisableSSRFProtection: false})
-	resp, err := client.Get(target.URL)
-	if err == nil {
-		body, _ := io.ReadAll(resp.Body)
-		resp.Body.Close()
-		t.Fatalf("expected error blocking redirect to loopback, got status %d body=%q", resp.StatusCode, string(body))
+// TestValidateURL covers the URL-level validation logic that CheckRedirect
+// delegates to and that callers must run on the initial request URL. The tests
+// use public IP literals (8.8.8.8 / 1.1.1.1) instead of hostnames so they are
+// hermetic and do not need DisableSSRFProtection.
+func TestValidateURL(t *testing.T) {
+	mustURL := func(s string) *url.URL {
+		u, err := url.Parse(s)
+		if err != nil {
+			panic(err)
+		}
+		return u
+	}
+	tests := []struct {
+		name    string
+		u       string
+		opts    Options
+		wantErr bool
+	}{
+		{"loopback ip", "http://127.0.0.1/x", Options{}, true},
+		{"metadata ip", "http://169.254.169.254/x", Options{}, true},
+		{"dangerous port", "http://8.8.8.8:6379/x", Options{}, true},
+		{"host not allowed", "http://8.8.8.8/x", Options{RestrictHosts: []string{"1.1.1.1"}}, true},
+		{"host allowed", "http://8.8.8.8/x", Options{RestrictHosts: []string{"8.8.8.8"}}, false},
+		{"path traversal blocked", "http://8.8.8.8/allowed/../secret/x", Options{RestrictPaths: []string{"/allowed/"}}, true},
+		{"path allowed", "http://8.8.8.8/allowed/x", Options{RestrictPaths: []string{"/allowed/"}}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateURL(mustURL(tt.u), tt.opts)
+			if tt.wantErr && err == nil {
+				t.Errorf("ValidateURL(%s) = nil, want error", tt.u)
+			}
+			if !tt.wantErr && err != nil {
+				t.Errorf("ValidateURL(%s) = %v, want nil", tt.u, err)
+			}
+		})
 	}
 }
