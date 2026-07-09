@@ -885,18 +885,22 @@ with:
 	defer output.Body.Close()
 
 	maxSize := config.GetConfig().GetMaxImageSizeBytes()
-	if output.ContentLength > 0 && output.ContentLength > maxSize {
-		return nil, "", fmt.Errorf("object size (%d bytes) exceeds maximum (%d bytes)", output.ContentLength, maxSize)
+	contentLength := int64(0)
+	if output.ContentLength != nil {
+		contentLength = *output.ContentLength
+		if contentLength > maxSize {
+			return nil, "", fmt.Errorf("object size (%d bytes) exceeds maximum (%d bytes)", contentLength, maxSize)
+		}
 	}
 
-	log.Printf("Content Length: %d    Content-Type: %s", output.ContentLength, aws.ToString(output.ContentType))
+	log.Printf("Content Length: %d    Content-Type: %s", contentLength, aws.ToString(output.ContentType))
 
 	buf := new(bytes.Buffer)
-	n, err := io.Copy(buf, io.LimitReader(output.Body, maxSize))
+	n, err := io.Copy(buf, io.LimitReader(output.Body, maxSize+1))
 	if err != nil {
 		return nil, "", err
 	}
-	if n >= maxSize {
+	if n > maxSize {
 		return nil, "", fmt.Errorf("object size exceeds maximum (%d bytes)", maxSize)
 	}
 
@@ -934,11 +938,14 @@ with:
 	defer reader.Close()
 
 	maxSize := config.GetConfig().GetMaxImageSizeBytes()
-	buf, err := io.ReadAll(io.LimitReader(reader, maxSize))
+	if objAttrs.Size > maxSize {
+		return nil, "", fmt.Errorf("object size (%d bytes) exceeds maximum (%d bytes)", objAttrs.Size, maxSize)
+	}
+	buf, err := io.ReadAll(io.LimitReader(reader, maxSize+1))
 	if err != nil {
 		return nil, "", err
 	}
-	if int64(len(buf)) >= maxSize {
+	if int64(len(buf)) > maxSize {
 		return nil, "", fmt.Errorf("object size exceeds maximum (%d bytes)", maxSize)
 	}
 
@@ -949,7 +956,7 @@ Add import `"github.com/erans/thumbla/config"` (`"fmt"` is already imported in `
 
 - [ ] **Step 3: Fix `fetchers/ds.go`**
 
-DS returns the raw body. Wrap it with a `LimitReader` and return a `ReadCloser` so the handler can close it. Replace:
+DS currently returns the raw body. Buffer it with `LimitReader(maxSize+1)`, reject overflow, and close the underlying object body inside the fetcher. Replace:
 
 ```go
 	return output.Body, aws.ToString(output.ContentType), nil
@@ -958,16 +965,34 @@ DS returns the raw body. Wrap it with a `LimitReader` and return a `ReadCloser` 
 with:
 
 ```go
+	defer output.Body.Close()
+
 	maxSize := config.GetConfig().GetMaxImageSizeBytes()
-	body := io.NopCloser(io.LimitReader(output.Body, maxSize))
-	return body, aws.ToString(output.ContentType), nil
+	contentLength := int64(0)
+	if output.ContentLength != nil {
+		contentLength = *output.ContentLength
+		if contentLength > maxSize {
+			return nil, "", fmt.Errorf("object size (%d bytes) exceeds maximum (%d bytes)", contentLength, maxSize)
+		}
+	}
+
+	buf := new(bytes.Buffer)
+	n, err := io.Copy(buf, io.LimitReader(output.Body, maxSize+1))
+	if err != nil {
+		return nil, "", err
+	}
+	if n > maxSize {
+		return nil, "", fmt.Errorf("object size exceeds maximum (%d bytes)", maxSize)
+	}
+
+	return bytes.NewReader(buf.Bytes()), aws.ToString(output.ContentType), nil
 ```
 
-Add import `"github.com/erans/thumbla/config"`.
+Add imports `"bytes"` and `"github.com/erans/thumbla/config"`.
 
 - [ ] **Step 4: Fix `fetchers/r2.go`**
 
-Same as DS. Replace:
+Same as DS: buffer with `LimitReader(maxSize+1)`, reject overflow, and close the underlying object body inside the fetcher. Replace:
 
 ```go
 	return output.Body, aws.ToString(output.ContentType), nil
@@ -976,12 +1001,30 @@ Same as DS. Replace:
 with:
 
 ```go
+	defer output.Body.Close()
+
 	maxSize := config.GetConfig().GetMaxImageSizeBytes()
-	body := io.NopCloser(io.LimitReader(output.Body, maxSize))
-	return body, aws.ToString(output.ContentType), nil
+	contentLength := int64(0)
+	if output.ContentLength != nil {
+		contentLength = *output.ContentLength
+		if contentLength > maxSize {
+			return nil, "", fmt.Errorf("object size (%d bytes) exceeds maximum (%d bytes)", contentLength, maxSize)
+		}
+	}
+
+	buf := new(bytes.Buffer)
+	n, err := io.Copy(buf, io.LimitReader(output.Body, maxSize+1))
+	if err != nil {
+		return nil, "", err
+	}
+	if n > maxSize {
+		return nil, "", fmt.Errorf("object size exceeds maximum (%d bytes)", maxSize)
+	}
+
+	return bytes.NewReader(buf.Bytes()), aws.ToString(output.ContentType), nil
 ```
 
-Add import `"github.com/erans/thumbla/config"`.
+Add imports `"bytes"` and `"github.com/erans/thumbla/config"`.
 
 - [ ] **Step 5: Close streaming bodies in the handler**
 
