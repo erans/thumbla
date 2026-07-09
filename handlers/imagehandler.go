@@ -152,6 +152,14 @@ func loadImage(c *fiber.Ctx, url string, contentType string, body io.Reader, alt
 			w = alternativeWidth
 		}
 
+		if w <= 0 || h <= 0 {
+			return nil, fmt.Errorf("invalid SVG target dimensions: %dx%d", w, h)
+		}
+		if w > maxDim || h > maxDim {
+			return nil, fmt.Errorf("SVG target dimensions (%dx%d) exceed maximum allowed size (%dx%d)",
+				w, h, maxDim, maxDim)
+		}
+
 		svgImg.SetTarget(0, 0, float64(w), float64(h))
 
 		var tempImg *image.RGBA64 = image.NewRGBA64(image.Rect(0, 0, w, h))

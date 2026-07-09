@@ -259,13 +259,13 @@ func TestHandleImage_InvalidRequests(t *testing.T) {
 }
 
 func TestHandleImage_RejectsOversizedPNG(t *testing.T) {
-	_, cleanup := setupTestEnvironment(t)
+	tempDir, cleanup := setupTestEnvironment(t)
 	defer cleanup()
 
 	// Use a small max dimension so a 100x100 PNG exceeds it.
 	cfg := &config.Config{
 		Fetchers: []map[string]interface{}{
-			{"name": "local", "type": "local", "path": os.TempDir()},
+			{"name": "local", "type": "local", "path": tempDir},
 		},
 		Paths:  []config.PathConfig{{Path: "/test", FetcherName: "local"}},
 		Server: config.ServerConfig{MaxImageDimension: 50, MaxImageSizeBytes: 50 * 1024 * 1024},
@@ -274,20 +274,38 @@ func TestHandleImage_RejectsOversizedPNG(t *testing.T) {
 	fetchers.InitFetchers(cfg)
 	manipulators.InitManipulators(cfg)
 
-	pngData, _ := createTestImage(100, 100, "png")
-	os.WriteFile(filepath.Join(os.TempDir(), "big.png"), pngData, 0644)
-	defer os.Remove(filepath.Join(os.TempDir(), "big.png"))
-
 	app := fiber.New()
 	app.Get("/test/:url/*", HandleImage)
 
-	req := httptest.NewRequest("GET", "/test/big.png/output:f=png", nil)
+	req := httptest.NewRequest("GET", "/test/test.png/output:f=png", nil)
 	resp, err := app.Test(req)
 	if err != nil {
 		t.Fatalf("request failed: %v", err)
 	}
 	if resp.StatusCode != fiber.StatusInternalServerError {
 		t.Errorf("expected 500 for oversized image, got %d", resp.StatusCode)
+	}
+}
+
+func TestHandleImage_RejectsOversizedSVGRequestedDimensions(t *testing.T) {
+	tempDir, cleanup := setupTestEnvironment(t)
+	defer cleanup()
+
+	svgData := []byte(`<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 10 10"><rect width="10" height="10" fill="red"/></svg>`)
+	if err := os.WriteFile(filepath.Join(tempDir, "tiny.svg"), svgData, 0644); err != nil {
+		t.Fatalf("failed to write test SVG: %v", err)
+	}
+
+	app := fiber.New()
+	app.Get("/test/:url/*", HandleImage)
+
+	req := httptest.NewRequest("GET", "/test/tiny.svg%7C2000000000,2000000000/output:f=png", nil)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	if resp.StatusCode != fiber.StatusInternalServerError {
+		t.Errorf("expected 500 for oversized SVG requested dimensions, got %d", resp.StatusCode)
 	}
 }
 
