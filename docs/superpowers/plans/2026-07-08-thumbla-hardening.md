@@ -1190,10 +1190,17 @@ func TestRedisCache_TrimsDeleteDataKeys(t *testing.T) {
 
 	c := NewRedisCache(cfg)
 	c.SetBytes("k1", []byte("v1"))
-	c.SetBytes("k2", []byte("v2")) // should evict k1
+	c.SetBytes("k2", []byte("v2")) // should evict one data key
 
+	remaining := 0
 	if c.Contains("k1") {
-		t.Fatal("expected k1 to be evicted (data key deleted)")
+		remaining++
+	}
+	if c.Contains("k2") {
+		remaining++
+	}
+	if remaining != 1 {
+		t.Fatalf("expected exactly one data key after LRU trim, got %d", remaining)
 	}
 }
 ```
