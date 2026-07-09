@@ -353,7 +353,9 @@ func HandleImage(c *fiber.Ctx) error {
 	logger := middleware.GetLoggerFromContext(c)
 	logger.Debug().Str("path", c.Path()).Msg("Handling image request")
 
-	pathConfig := config.GetConfig().GetPathConfigByPath(c.Route().Path)
+	rawRequestPath := c.Route().Path
+	path := rawRequestPath[0:strings.Index(rawRequestPath, "/:url")]
+	pathConfig := config.GetConfig().GetPathConfigByPath(path)
 
 	var imageURL string
 	var err error
@@ -370,9 +372,6 @@ func HandleImage(c *fiber.Ctx) error {
 
 	logger.Debug().Str("routePath", c.Route().Path).Msg("Searching for fetcher")
 	logger.Debug().Str("parsedURL", parsedURL.String()).Msg("Parsed URL")
-
-	rawRequestPath := c.Route().Path
-	path := rawRequestPath[0:strings.Index(rawRequestPath, "/:url")]
 
 	var imageBody io.Reader
 	var contentType string

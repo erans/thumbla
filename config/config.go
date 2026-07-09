@@ -21,13 +21,21 @@ type PathConfig struct {
 
 // ServerConfig provides server-level configuration options
 type ServerConfig struct {
-	MaxRequestSize    int64           `yaml:"maxRequestSize"`    // In bytes, default 100MB
-	ReadTimeout       int             `yaml:"readTimeout"`       // In seconds, default 30
-	WriteTimeout      int             `yaml:"writeTimeout"`      // In seconds, default 30
-	HTTPTimeout       int             `yaml:"httpTimeout"`       // In seconds for HTTP fetcher, default 30
-	MaxImageDimension int             `yaml:"maxImageDimension"` // Max image width or height in pixels, default 10000
-	MaxImageSizeBytes int64           `yaml:"maxImageSizeBytes"` // Max image file size in bytes, default 50MB
-	RateLimit         RateLimitConfig `yaml:"rateLimit"`
+	MaxRequestSize    int64                `yaml:"maxRequestSize"`    // In bytes, default 100MB
+	ReadTimeout       int                  `yaml:"readTimeout"`       // In seconds, default 30
+	WriteTimeout      int                  `yaml:"writeTimeout"`      // In seconds, default 30
+	HTTPTimeout       int                  `yaml:"httpTimeout"`       // In seconds for HTTP fetcher, default 30
+	MaxImageDimension int                  `yaml:"maxImageDimension"` // Max image width or height in pixels, default 10000
+	MaxImageSizeBytes int64                `yaml:"maxImageSizeBytes"` // Max image file size in bytes, default 50MB
+	RateLimit         RateLimitConfig      `yaml:"rateLimit"`
+	TrustedProxies    TrustedProxiesConfig `yaml:"trustedProxies"`
+}
+
+// TrustedProxiesConfig provides trusted proxy configuration for client IP handling.
+type TrustedProxiesConfig struct {
+	Enabled     bool     `yaml:"enabled"`
+	Proxies     []string `yaml:"proxies"`     // trusted proxy CIDRs/hostnames
+	ProxyHeader string   `yaml:"proxyHeader"` // e.g. "X-Forwarded-For"
 }
 
 // RateLimitConfig provides rate limiting configuration
@@ -237,6 +245,11 @@ func (cfg *Config) GetHTTPTimeout() int {
 func (cfg *Config) IsRateLimitEnabled() bool {
 	// Default to enabled if not explicitly set
 	return cfg.Server.RateLimit.Enabled
+}
+
+// IsTrustedProxiesEnabled returns whether trusted-proxy handling is enabled.
+func (cfg *Config) IsTrustedProxiesEnabled() bool {
+	return cfg.Server.TrustedProxies.Enabled
 }
 
 // GetRateLimitMaxRequests returns the max requests for rate limiting with default fallback
