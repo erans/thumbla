@@ -10,11 +10,12 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/erans/thumbla/config"
 	"github.com/erans/thumbla/utils"
 	"github.com/gofiber/fiber/v2"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/config"
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
@@ -88,9 +89,9 @@ func (fetcher *S3Fetcher) Fetch(c *fiber.Ctx, fileURL string) (io.Reader, string
 		return nil, "", fmt.Errorf("failed to parse file URL. url=%s", fileURL)
 	}
 
-	cfg, err := config.LoadDefaultConfig(context.TODO(),
-		config.WithRegion(region),
-		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
+	cfg, err := awsconfig.LoadDefaultConfig(context.TODO(),
+		awsconfig.WithRegion(region),
+		awsconfig.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
 			fetcher.AccessKeyID,
 			fetcher.SecretAccessKey,
 			"",
@@ -112,14 +113,26 @@ func (fetcher *S3Fetcher) Fetch(c *fiber.Ctx, fileURL string) (io.Reader, string
 		return nil, "", err
 	}
 
-	// TODO: Currently we fetch the image to the memory. Consider adding protection to limit the max size
+	defer output.Body.Close()
 
-	log.Printf("Content Length: %d    Content-Type: %s", output.ContentLength, aws.ToString(output.ContentType))
+	maxSize := config.GetConfig().GetMaxImageSizeBytes()
+	contentLength := int64(0)
+	if output.ContentLength != nil {
+		contentLength = *output.ContentLength
+		if contentLength > maxSize {
+			return nil, "", fmt.Errorf("object size (%d bytes) exceeds maximum (%d bytes)", contentLength, maxSize)
+		}
+	}
+
+	log.Printf("Content Length: %d    Content-Type: %s", contentLength, aws.ToString(output.ContentType))
 
 	buf := new(bytes.Buffer)
-	_, err = io.Copy(buf, output.Body)
+	n, err := io.Copy(buf, io.LimitReader(output.Body, maxSize+1))
 	if err != nil {
 		return nil, "", err
+	}
+	if n > maxSize {
+		return nil, "", fmt.Errorf("object size exceeds maximum (%d bytes)", maxSize)
 	}
 
 	return bytes.NewReader(buf.Bytes()), aws.ToString(output.ContentType), nil

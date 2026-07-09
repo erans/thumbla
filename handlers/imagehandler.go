@@ -485,6 +485,10 @@ func HandleImage(c *fiber.Ctx) error {
 		}
 	}
 
+	if closer, ok := imageBody.(io.Closer); ok {
+		defer closer.Close()
+	}
+
 	if imageBody == nil {
 		return c.Status(fiber.StatusNotFound).SendString("file not found")
 	}
