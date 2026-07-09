@@ -1541,7 +1541,7 @@ Add `Validate(params map[string]string) error` to the `Manipulator` interface, i
 - Modify: `handlers/imagehandler_test.go` (end-to-end `resize:r=lanczos`)
 
 **Interfaces:**
-- Produces: `Manipulator.Validate(params map[string]string) error` and `manipulators.ValidateNumericInt(name, value string, min, max int) error`.
+- Produces: `Manipulator.Validate(params map[string]string) error`, `manipulators.ValidateParamShape(name, value string) error` (generic name/value length guard), and `manipulators.ValidateNumericInt(name, value string, min, max int) error`.
 
 - [ ] **Step 1: Write the failing end-to-end test**
 
@@ -1591,9 +1591,21 @@ type Manipulator interface {
 }
 ```
 
-Add the helper and imports (`"fmt"`, `"strconv"`):
+Add helpers and imports (`"fmt"`, `"strconv"`). `ValidateParamShape` preserves the generic length checks from the old global validator; per-manipulator `Validate` methods handle semantic validation:
 
 ```go
+// ValidateParamShape enforces generic parameter-name/value limits before
+// per-manipulator semantic validation runs.
+func ValidateParamShape(name, value string) error {
+	if len(name) > 50 {
+		return fmt.Errorf("parameter name too long: %d characters", len(name))
+	}
+	if len(value) > 100 {
+		return fmt.Errorf("parameter value too long: %d characters", len(value))
+	}
+	return nil
+}
+
 // ValidateNumericInt parses a param as an int and checks bounds.
 func ValidateNumericInt(name, value string, min, max int) error {
 	v, err := strconv.Atoi(value)
@@ -1701,18 +1713,20 @@ func (manipulator *CropManipulator) Validate(params map[string]string) error {
 }
 ```
 
-- **brightness.go** and **contrast.go** — `v` numeric in [-255, 255]:
+- **brightness.go** and **contrast.go** — `v` remains a float because `Execute` currently uses `strconv.ParseFloat` and clamps to [-100,100]. Validate that it is parseable as a float without changing that existing behavior:
 
 ```go
 func (manipulator *BrightnessManipulator) Validate(params map[string]string) error {
 	if v, ok := params["v"]; ok {
-		return ValidateNumericInt("v", v, -255, 255)
+		if _, err := strconv.ParseFloat(v, 64); err != nil {
+			return fmt.Errorf("parameter v requires numeric value, got: %s", v)
+		}
 	}
 	return nil
 }
 ```
 
-(Same body for `ContrastManipulator`.)
+(Same body for `ContrastManipulator`; both already import `fmt` and `strconv`.)
 
 - **shearh.go** and **shearv.go** — `a` numeric float in [-360, 360] (imports `"fmt"`, `"strconv"`):
 
@@ -1741,7 +1755,7 @@ func (manipulator *FlipHorizontalManipulator) Validate(params map[string]string)
 
 (Same for `FlipVerticalManipulator`, `PasteManipulator`, `FaceCropManipulator`.)
 
-- **output.go** — validate `f` allowlist, `q` in [1, 100], `lossless`/`progressive` booleans (imports `"fmt"`, `"strings"`, `"strconv"`):
+- **output.go** — validate `f` allowlist, `q` in [1, 100], `lossless`/`exact`/`progressive` booleans (imports `"fmt"`, `"strings"`; `strconv` is not needed unless used elsewhere):
 
 ```go
 func (manipulator *OutputManipulator) Validate(params map[string]string) error {
@@ -1755,7 +1769,7 @@ func (manipulator *OutputManipulator) Validate(params map[string]string) error {
 			return err
 		}
 	}
-	for _, b := range []string{"lossless", "progressive"} {
+	for _, b := range []string{"lossless", "exact", "progressive"} {
 		if v, ok := params[b]; ok {
 			if v != "true" && v != "false" && v != "1" && v != "0" {
 				return fmt.Errorf("parameter %s requires boolean value, got: %s", b, v)
@@ -1789,6 +1803,14 @@ with:
 
 ```go
 			if manipulatorParamName != "" {
+				if err := manipulators.ValidateParamShape(manipulatorParamName, manipulatorParamValue); err != nil {
+					logger.Warn().
+						Str("param", manipulatorParamName).
+						Str("value", manipulatorParamValue).
+						Err(err).
+						Msg("Invalid manipulator parameter")
+					return nil
+				}
 				manipulatorParams[manipulatorParamName] = manipulatorParamValue
 			}
 ```
@@ -1811,7 +1833,7 @@ Then, after the manipulator-name/params are parsed (where `result[k] = &manipula
 		}
 ```
 
-Delete the `validateManipulatorParameter` function (no longer called). Remove now-unused imports if any (e.g. `net/url` is still used for `url.QueryUnescape` — keep it).
+Delete the old `validateManipulatorParameter` function (the global numeric map is no longer called). The generic length checks now live in `manipulators.ValidateParamShape`. Remove now-unused imports if any (e.g. `net/url` is still used for `url.QueryUnescape` — keep it).
 
 - [ ] **Step 6: Run the end-to-end test and the full manipulator suite**
 
