@@ -1,11 +1,13 @@
 package manipulators
 
 import (
+	"fmt"
 	"image"
 	"image/draw"
-	"net/http"
+	"io"
 
 	"github.com/erans/thumbla/config"
+	"github.com/erans/thumbla/httpclient"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -54,13 +56,22 @@ var alignmentRegistry = map[string]func(b image.Rectangle, bb image.Rectangle) i
 // Execute runs the paste manipulator
 func (manipulator *PasteManipulator) Execute(c *fiber.Ctx, params map[string]string, img image.Image) (image.Image, error) {
 	if imgUrl, ok := params["img"]; ok {
-		response, err := http.Get(imgUrl)
+		client := httpclient.NewClient(httpclient.Options{
+			TimeoutSeconds: config.GetConfig().GetHTTPTimeout(),
+			MaxBytes:       config.GetConfig().GetMaxImageSizeBytes(),
+		})
+		response, err := client.Get(imgUrl)
 		if err != nil {
 			return nil, err
 		}
-
 		defer response.Body.Close()
-		pastedImg, _, err := image.Decode(response.Body)
+
+		if response.StatusCode < 200 || response.StatusCode >= 300 {
+			return nil, fmt.Errorf("paste: fetch returned HTTP %d", response.StatusCode)
+		}
+
+		limited := io.LimitReader(response.Body, config.GetConfig().GetMaxImageSizeBytes())
+		pastedImg, _, err := image.Decode(limited)
 		if err != nil {
 			return nil, err
 		}
