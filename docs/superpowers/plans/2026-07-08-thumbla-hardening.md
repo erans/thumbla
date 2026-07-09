@@ -63,7 +63,7 @@ type Options struct {
 }
 ```
 
-- Produces: `httpclient.IsPrivateOrLocalIP(ip net.IP) bool`, `httpclient.IsDangerousPort(port string) bool` (relocated from `fetchers/http.go`).
+- Produces: `httpclient.IsPrivateOrLocalIP(ip net.IP) bool`, `httpclient.IsDangerousPort(port string) bool` (relocated from `fetchers/http.go`), and `httpclient.ValidateURL(u *url.URL, opts Options) error` — the URL-level host/path/port/IP check that `CheckRedirect` calls on every redirect **and that callers MUST call on the initial request URL** (the `*http.Client` has no hook to validate the first URL's host/path before dial; `DialContext` only sees host:port and only enforces IP/port). `CheckRedirect` delegates to `ValidateURL`, so testing `ValidateURL` directly covers the redirect-validation logic.
 
 - [ ] **Step 1: Write the failing test for IP validation**
 
@@ -131,7 +131,10 @@ Create `httpclient/ssrf.go`:
 // Package httpclient provides a shared SSRF-safe HTTP client used by all
 // HTTP-fetching code in thumbla. It validates the resolved IP at connect time
 // (closing the DNS-rebinding TOCTOU) and re-validates host/path/port on every
-// redirect (closing the redirect-following bypass).
+// redirect (closing the redirect-following bypass). Callers MUST also call
+// ValidateURL on the initial request URL before issuing it, to enforce
+// RestrictHosts/RestrictPaths on the first request (CheckRedirect only runs
+// on redirects).
 package httpclient
 
 import (
@@ -183,9 +186,13 @@ func IsDangerousPort(port string) bool {
 	return dangerousPorts[port]
 }
 
-// validateURL runs host/path/port checks against a URL. It is called for the
-// initial request and for every redirect target.
-func validateURL(u *url.URL, opts Options) error {
+// ValidateURL runs host/path/port/IP checks against a URL. It is the
+// single source of truth for URL-level SSRF validation: CheckRedirect calls
+// it on every redirect target, and callers MUST call it on the initial
+// request URL before issuing the request (the *http.Client has no hook to
+// validate the first URL's host/path before dial; DialContext only sees
+// host:port and only enforces IP/port). Returns nil if the URL is allowed.
+func ValidateURL(u *url.URL, opts Options) error {
 	host := u.Hostname()
 	port := u.Port()
 
@@ -274,7 +281,7 @@ func NewClient(opts Options) *http.Client {
 		Timeout:   timeout,
 		Transport: transport,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			if err := validateURL(req.URL, opts); err != nil {
+			if err := ValidateURL(req.URL, opts); err != nil {
 				return err
 			}
 			if len(via) >= 10 {
@@ -296,43 +303,75 @@ func MaxBytes() int64 {
 Run: `go test ./httpclient/ -run TestIsPrivateOrLocalIP -v`
 Expected: PASS.
 
-- [ ] **Step 5: Write the failing test for redirect/DNS-rebind defense**
+- [ ] **Step 5: Write failing tests for redirect validation and URL validation**
 
-Append to `httpclient/ssrf_test.go`:
+Update `httpclient/ssrf_test.go` so it contains the following additional tests. Merge `net/http` and `net/url` into the existing import block; do **not** add a second `package` declaration or a second import block.
 
 ```go
-package httpclient
+// TestNewClient_CheckRedirect_BlocksLoopback exercises the redirect policy
+// directly (no network): CheckRedirect must reject a redirect target whose
+// host resolves to a loopback/private IP. Calling client.CheckRedirect
+// directly avoids the false-pass where the *initial* dial to a 127.0.0.1
+// test server is blocked before any redirect occurs.
+func TestNewClient_CheckRedirect_BlocksLoopback(t *testing.T) {
+	client := NewClient(Options{TimeoutSeconds: 5})
+	req, err := http.NewRequest("GET", "http://127.0.0.1:6379/", nil)
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	prev, err := http.NewRequest("GET", "http://8.8.8.8/", nil)
+	if err != nil {
+		t.Fatalf("new prev request: %v", err)
+	}
+	if err := client.CheckRedirect(req, []*http.Request{prev}); err == nil {
+		t.Fatal("expected CheckRedirect to reject loopback redirect target, got nil")
+	}
+}
 
-import (
-	"io"
-	"net/http"
-	"net/http/httptest"
-	"testing"
-)
-
-// A redirect to a loopback address must be blocked even though the initial
-// host (the test server) is reachable and public-ish on the dial path.
-func TestNewClient_BlocksRedirectToLoopback(t *testing.T) {
-	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Location", "http://127.0.0.1:6379/")
-		w.WriteHeader(http.StatusFound)
-	}))
-	defer target.Close()
-
-	client := NewClient(Options{TimeoutSeconds: 5, DisableSSRFProtection: false})
-	resp, err := client.Get(target.URL)
-	if err == nil {
-		body, _ := io.ReadAll(resp.Body)
-		resp.Body.Close()
-		t.Fatalf("expected error blocking redirect to loopback, got status %d body=%q", resp.StatusCode, string(body))
+// TestValidateURL covers the URL-level validation logic that CheckRedirect
+// delegates to and that callers must run on the initial request URL. The tests
+// use public IP literals (8.8.8.8 / 1.1.1.1) instead of hostnames so they are
+// hermetic and do not need DisableSSRFProtection.
+func TestValidateURL(t *testing.T) {
+	mustURL := func(s string) *url.URL {
+		u, err := url.Parse(s)
+		if err != nil {
+			panic(err)
+		}
+		return u
+	}
+	tests := []struct {
+		name    string
+		u       string
+		opts    Options
+		wantErr bool
+	}{
+		{"loopback ip", "http://127.0.0.1/x", Options{}, true},
+		{"metadata ip", "http://169.254.169.254/x", Options{}, true},
+		{"dangerous port", "http://8.8.8.8:6379/x", Options{}, true},
+		{"host not allowed", "http://8.8.8.8/x", Options{RestrictHosts: []string{"1.1.1.1"}}, true},
+		{"host allowed", "http://8.8.8.8/x", Options{RestrictHosts: []string{"8.8.8.8"}}, false},
+		{"path traversal blocked", "http://8.8.8.8/allowed/../secret/x", Options{RestrictPaths: []string{"/allowed/"}}, true},
+		{"path allowed", "http://8.8.8.8/allowed/x", Options{RestrictPaths: []string{"/allowed/"}}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateURL(mustURL(tt.u), tt.opts)
+			if tt.wantErr && err == nil {
+				t.Errorf("ValidateURL(%s) = nil, want error", tt.u)
+			}
+			if !tt.wantErr && err != nil {
+				t.Errorf("ValidateURL(%s) = %v, want nil", tt.u, err)
+			}
+		})
 	}
 }
 ```
 
-- [ ] **Step 6: Run test to verify it passes**
+- [ ] **Step 6: Run tests to verify they pass**
 
-Run: `go test ./httpclient/ -run TestNewClient_BlocksRedirectToLoopback -v`
-Expected: PASS — `CheckRedirect` re-runs `validateURL` on the loopback redirect target.
+Run: `go test ./httpclient/ -run "TestNewClient_CheckRedirect_BlocksLoopback|TestValidateURL" -v`
+Expected: PASS — `CheckRedirect` rejects the loopback redirect target; `ValidateURL` rejects private IPs, dangerous ports, disallowed hosts, and `..` path traversal, and allows valid hosts/paths.
 
 - [ ] **Step 7: Commit**
 
@@ -353,46 +392,55 @@ Remove the inline SSRF/IP/port checks (now in the shared client) and the inline 
 - Modify: `fetchers/http_test.go` (add SSRF-on test; keep existing tests working)
 
 **Interfaces:**
-- Consumes: `httpclient.NewClient`, `httpclient.Options`.
+- Consumes: `httpclient.NewClient`, `httpclient.Options`, and `httpclient.ValidateURL` for the initial request URL.
 - Produces: unchanged `HTTPFetcher.Fetch` signature.
 
-- [ ] **Step 1: Write the failing test asserting SSRF protection rejects a private redirect**
+- [ ] **Step 1: Write integration tests asserting the HTTP fetcher enforces initial-URL validation**
 
 Append to `fetchers/http_test.go`:
 
 ```go
-func TestHTTPFetcher_SSRF_BlocksRedirectToLoopback(t *testing.T) {
+func TestHTTPFetcher_SSRF_BlocksLoopbackInitialURL(t *testing.T) {
 	cfg := &config.Config{Server: config.ServerConfig{HTTPTimeout: 5, MaxImageSizeBytes: 10 * 1024 * 1024}}
 	config.SetConfig(cfg)
 
-	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Location", "http://127.0.0.1:6379/")
-		w.WriteHeader(http.StatusFound)
-	}))
-	defer target.Close()
-
-	// restrictHosts set to the test server host so the *initial* URL is allowed;
-	// the redirect target must still be blocked by SSRF validation.
-	fetcherCfg := map[string]interface{}{
-		"name":          "testHTTP",
-		"type":          "http",
-		"restrictHosts": []interface{}{target.URL[len("http://"):]},
+	fetcher := NewHTTPFetcher(map[string]interface{}{
+		"name": "testHTTP",
+		"type": "http",
 		// NOTE: disableSSRFProtection intentionally NOT set.
-	}
-	fetcher := NewHTTPFetcher(fetcherCfg)
+	})
 
 	var ctx *fiber.Ctx
-	_, _, err := fetcher.Fetch(ctx, target.URL)
+	_, _, err := fetcher.Fetch(ctx, "http://127.0.0.1:6379/test.jpg")
 	if err == nil {
-		t.Fatal("expected SSRF error blocking redirect to loopback, got none")
+		t.Fatal("expected SSRF error blocking loopback initial URL, got none")
+	}
+}
+
+func TestHTTPFetcher_RestrictPathsBlocksDotDotTraversal(t *testing.T) {
+	cfg := &config.Config{Server: config.ServerConfig{HTTPTimeout: 5, MaxImageSizeBytes: 10 * 1024 * 1024}}
+	config.SetConfig(cfg)
+
+	fetcher := NewHTTPFetcher(map[string]interface{}{
+		"name":          "testHTTP",
+		"type":          "http",
+		"restrictPaths": []interface{}{"/allowed/"},
+	})
+
+	var ctx *fiber.Ctx
+	_, _, err := fetcher.Fetch(ctx, "http://8.8.8.8/allowed/../secret/test.jpg")
+	if err == nil {
+		t.Fatal("expected restrictPaths to reject /allowed/../secret traversal, got none")
 	}
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+These are integration/regression tests for the fetcher wiring. The redirect-specific validation path is covered in Task 1 by `httpclient.TestNewClient_CheckRedirect_BlocksLoopback`, which directly exercises `client.CheckRedirect` without the false-pass of a local `httptest` server.
 
-Run: `go test ./fetchers/ -run TestHTTPFetcher_SSRF_BlocksRedirectToLoopback -v`
-Expected: FAIL — current code follows the redirect without re-validation.
+- [ ] **Step 2: Run tests to capture current behavior**
+
+Run: `go test ./fetchers/ -run "TestHTTPFetcher_SSRF_BlocksLoopbackInitialURL|TestHTTPFetcher_RestrictPathsBlocksDotDotTraversal" -v`
+Expected: the loopback test may already PASS under the pre-refactor inline SSRF check; the `..` path traversal test demonstrates the gap this task must close (current code only raw-prefix checks paths and can pass for the wrong reason by failing later on network). Keep both as regression guards.
 
 - [ ] **Step 3: Refactor `fetchers/http.go` to use the shared client**
 
@@ -403,26 +451,30 @@ Edit `fetchers/http.go`:
 3. In `Fetch`, delete the inline SSRF block (the `if !fetcher.DisableSSRFProtection { ... }` host/port/LookupIP block), the inline `restrictHosts`/`restrictPaths` blocks, and the `client := &http.Client{...}` line. Replace with:
 
 ```go
-	// Build a shared SSRF-safe client that enforces host/path/port/IP checks
-	// at dial time and on every redirect.
-	client := httpclient.NewClient(httpclient.Options{
+	// Build shared SSRF-safe options once so the initial URL and redirect targets
+	// are validated with identical rules.
+	clientOpts := httpclient.Options{
 		TimeoutSeconds:        config.GetConfig().GetHTTPTimeout(),
 		MaxBytes:              config.GetConfig().GetMaxImageSizeBytes(),
 		RestrictHosts:         fetcher.RestrictHosts,
 		RestrictPaths:         fetcher.RestrictPaths,
 		DisableSSRFProtection: fetcher.DisableSSRFProtection,
-	})
+	}
+	client := httpclient.NewClient(clientOpts)
 
-	// Validate the *initial* URL up front so callers get a clear error
-	// before any network activity.
+	// Validate the *initial* URL up front. CheckRedirect only runs on redirects;
+	// DialContext only sees host:port and cannot enforce RestrictHosts or
+	// RestrictPaths for the first request.
 	parsedURL, err := url.Parse(fetchURL)
 	if err != nil {
 		return nil, "", fmt.Errorf("invalid URL: %w", err)
 	}
-	_ = parsedURL // validated by the client on dial/redirect
+	if err := httpclient.ValidateURL(parsedURL, clientOpts); err != nil {
+		return nil, "", err
+	}
 ```
 
-Keep the existing request construction (`http.NewRequestWithContext`), `client.Do`, decompression, and `LimitReader` read unchanged. The `restrictPaths` `path.Clean` fix now lives in `httpclient.validateURL`.
+Keep the existing request construction (`http.NewRequestWithContext`), `client.Do`, decompression, and `LimitReader` read unchanged. The `restrictPaths` `path.Clean` fix now lives in `httpclient.ValidateURL`.
 
 - [ ] **Step 4: Run all fetcher tests**
 
