@@ -28,6 +28,51 @@ import (
 	"github.com/erans/thumbla/utils"
 )
 
+// checkImageDimensions reads format config from body and rejects images
+// exceeding maxImageDimension before the full pixel buffer is allocated.
+// DecodeConfig consumes bytes, so this function reads the already-size-limited
+// body into memory once and returns a fresh reader over the full data.
+func checkImageDimensions(contentType string, body io.Reader) (io.Reader, error) {
+	data, err := io.ReadAll(body)
+	if err != nil {
+		return nil, err
+	}
+
+	maxDim := config.GetConfig().GetMaxImageDimension()
+	configReader := bytes.NewReader(data)
+
+	var w, h int
+	var cfgErr error
+	switch contentType {
+	case "image/jpeg", "image/jpg":
+		var c image.Config
+		c, cfgErr = jpeg.DecodeConfig(configReader)
+		w, h = c.Width, c.Height
+	case "image/png":
+		var c image.Config
+		c, cfgErr = png.DecodeConfig(configReader)
+		w, h = c.Width, c.Height
+	case "image/webp":
+		var c image.Config
+		c, cfgErr = webp.DecodeConfig(configReader)
+		w, h = c.Width, c.Height
+	case "image/gif":
+		var c image.Config
+		c, cfgErr = gif.DecodeConfig(configReader)
+		w, h = c.Width, c.Height
+	default:
+		return bytes.NewReader(data), nil
+	}
+	if cfgErr != nil {
+		return nil, fmt.Errorf("failed to read image config: %w", cfgErr)
+	}
+	if w > maxDim || h > maxDim || w <= 0 || h <= 0 {
+		return nil, fmt.Errorf("image dimensions (%dx%d) exceed maximum allowed size (%dx%d)",
+			w, h, maxDim, maxDim)
+	}
+	return bytes.NewReader(data), nil
+}
+
 type manipulatorAction struct {
 	Name   string
 	Params map[string]string
@@ -48,6 +93,13 @@ func loadImage(c *fiber.Ctx, url string, contentType string, body io.Reader, alt
 		return nil, fmt.Errorf("content Type is missing and could not be inferred")
 	}
 
+	if contentType != "image/svg+xml" {
+		body, err = checkImageDimensions(contentType, body)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	if contentType == "image/jpeg" || contentType == "image/jpg" {
 		img, err = jpeg.Decode(body)
 	} else if contentType == "image/png" {
@@ -59,8 +111,22 @@ func loadImage(c *fiber.Ctx, url string, contentType string, body io.Reader, alt
 	} else if contentType == "image/svg+xml" {
 		var svgImg *oksvg.SvgIcon
 		svgImg, err = oksvg.ReadIconStream(body)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse SVG: %w", err)
+		}
 		w := int(svgImg.ViewBox.W)
 		h := int(svgImg.ViewBox.H)
+
+		maxDim := config.GetConfig().GetMaxImageDimension()
+		if w <= 0 || h <= 0 {
+			return nil, fmt.Errorf("invalid SVG dimensions: %dx%d", w, h)
+		}
+		if w > maxDim {
+			w = maxDim
+		}
+		if h > maxDim {
+			h = maxDim
+		}
 
 		ratio := math.Max(float64(w), float64(h)) / math.Min(float64(w), float64(h))
 		widthBigger := w > h
@@ -146,16 +212,16 @@ func validateManipulatorParameter(paramName, paramValue string) error {
 		numericParams := map[string]struct {
 			min, max float64
 		}{
-			"w":       {1, 20000},      // width: 1px to 20,000px
-			"h":       {1, 20000},      // height: 1px to 20,000px
-			"q":       {1, 100},        // quality: 1% to 100%
-			"a":       {-360, 360},     // angle: -360° to 360°
-			"x":       {0, 20000},      // x coordinate: 0 to 20,000px
-			"y":       {0, 20000},      // y coordinate: 0 to 20,000px
-			"r":       {0, 255},        // RGB values: 0 to 255
-			"g":       {0, 255},        // RGB values: 0 to 255
-			"b":       {0, 255},        // RGB values: 0 to 255
-			"a_color": {0, 255},        // Alpha: 0 to 255
+			"w":       {1, 20000},  // width: 1px to 20,000px
+			"h":       {1, 20000},  // height: 1px to 20,000px
+			"q":       {1, 100},    // quality: 1% to 100%
+			"a":       {-360, 360}, // angle: -360° to 360°
+			"x":       {0, 20000},  // x coordinate: 0 to 20,000px
+			"y":       {0, 20000},  // y coordinate: 0 to 20,000px
+			"r":       {0, 255},    // RGB values: 0 to 255
+			"g":       {0, 255},    // RGB values: 0 to 255
+			"b":       {0, 255},    // RGB values: 0 to 255
+			"a_color": {0, 255},    // Alpha: 0 to 255
 		}
 
 		if bounds, isNumeric := numericParams[paramName]; isNumeric {
@@ -224,7 +290,7 @@ func parseManipulators(c *fiber.Ctx) []*manipulatorAction {
 		}
 
 		logger := middleware.GetLoggerFromContext(c)
-	logger.Debug().Str("manipulator", manipulatorName).Msg("Processing manipulator")
+		logger.Debug().Str("manipulator", manipulatorName).Msg("Processing manipulator")
 
 		if len(parts) > 1 {
 			manipulatorParamsString = parts[1]
@@ -371,24 +437,31 @@ func HandleImage(c *fiber.Ctx) error {
 	imageURL, params = getFileParams(imageURL)
 
 	if strings.HasSuffix(strings.ToLower(imageURL), ".svg") {
+		if len(params) < 2 {
+			return c.Status(fiber.StatusBadRequest).SendString("SVG requests require |width,height params")
+		}
 		alternateWidth, _ = strconv.Atoi(params[0])
 		alternateHeight, _ = strconv.Atoi(params[1])
 	} else if imageURL == "_blank" {
-		if params[0] == "rgba" {
-			alternateWidth, _ = strconv.Atoi(params[1])
-			alternateHeight, _ = strconv.Atoi(params[2])
-
-			img := image.NewRGBA(image.Rectangle{image.Point{0, 0}, image.Point{alternateWidth, alternateHeight}})
-			buf := new(bytes.Buffer)
-			err := png.Encode(buf, img)
-			if err != nil {
-				return c.Status(fiber.StatusBadRequest).SendString("failed to create blank image")
-			}
-
-			imageBody = buf
-			contentType = "image/png"
-			useFetchers = false
+		if len(params) < 1 || params[0] != "rgba" {
+			return c.Status(fiber.StatusBadRequest).SendString("blank image requires |rgba,width,height params")
 		}
+		if len(params) < 3 {
+			return c.Status(fiber.StatusBadRequest).SendString("blank image requires |rgba,width,height params")
+		}
+		alternateWidth, _ = strconv.Atoi(params[1])
+		alternateHeight, _ = strconv.Atoi(params[2])
+
+		img := image.NewRGBA(image.Rectangle{image.Point{0, 0}, image.Point{alternateWidth, alternateHeight}})
+		buf := new(bytes.Buffer)
+		err := png.Encode(buf, img)
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).SendString("failed to create blank image")
+		}
+
+		imageBody = buf
+		contentType = "image/png"
+		useFetchers = false
 	}
 
 	if useFetchers {
