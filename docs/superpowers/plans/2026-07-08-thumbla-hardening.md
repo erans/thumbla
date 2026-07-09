@@ -1858,7 +1858,8 @@ The remaining medium findings: register `recover` before the logger; pass the co
 - Modify: `thumbla.go` (middleware order; trusted proxy config)
 - Modify: `handlers/imagehandler.go` (CacheControl uses base path)
 - Modify: `config/config.go` (TrustedProxies config block)
-- Modify: `config/config_test.go` (assert Redis password loads; assert TrustedProxies default)
+- Modify: `config/config_test.go` (assert Redis password loads; assert TrustedProxies config loads/defaults)
+- Modify: `config-example.yml` (document trusted proxy configuration)
 
 **Interfaces:**
 - Produces: `Config.Server.TrustedProxies` (struct: `Enabled bool; Proxies []string; ProxyHeader string`) + getter.
@@ -1898,6 +1899,42 @@ cache:
 	}
 	if cfg.GetRedisTTL() != 120 {
 		t.Errorf("expected TTL 120, got %d", cfg.GetRedisTTL())
+	}
+}
+
+func TestLoadConfig_TrustedProxies(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "thumbla_proxy_test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	configContent := `
+server:
+  trustedProxies:
+    enabled: true
+    proxies:
+      - "10.0.0.0/8"
+      - "192.168.0.0/16"
+    proxyHeader: "X-Forwarded-For"
+`
+	configFile := filepath.Join(tempDir, "test-config.yml")
+	if err := os.WriteFile(configFile, []byte(configContent), 0644); err != nil {
+		t.Fatalf("Failed to write config file: %v", err)
+	}
+
+	cfg, err := LoadConfig(configFile)
+	if err != nil {
+		t.Fatalf("LoadConfig: %v", err)
+	}
+	if !cfg.IsTrustedProxiesEnabled() {
+		t.Fatal("expected trusted proxies to be enabled")
+	}
+	if cfg.Server.TrustedProxies.ProxyHeader != "X-Forwarded-For" {
+		t.Errorf("expected proxy header X-Forwarded-For, got %q", cfg.Server.TrustedProxies.ProxyHeader)
+	}
+	if len(cfg.Server.TrustedProxies.Proxies) != 2 {
+		t.Fatalf("expected two trusted proxy entries, got %d", len(cfg.Server.TrustedProxies.Proxies))
 	}
 }
 ```
@@ -1985,6 +2022,19 @@ Edit `thumbla.go`. Configure Fiber's trusted-proxy check via `fiber.Config` when
 
 Exact field names (verified against `gofiber/fiber/v2@v2.52.9/app.go`): `EnableTrustedProxyCheck bool`, `TrustedProxies []string`, `ProxyHeader string`, `EnableIPValidation bool`. When disabled (default), `c.IP()` returns `fasthttp.RemoteIP()` and ignores `X-Forwarded-For`, so spoofing is impossible.
 
+Update `config-example.yml` to document the safe default and proxy deployment opt-in. Add this near the top-level config (for example after `debugLevel`):
+
+```yaml
+server:
+  # Trusted proxy support is disabled by default. When disabled, Fiber uses the
+  # TCP peer IP for c.IP(), so X-Forwarded-For cannot spoof rate-limit keys.
+  # Enable only when Thumbla runs behind known reverse proxies/load balancers.
+  trustedProxies:
+    enabled: false
+    proxies: []
+    proxyHeader: X-Forwarded-For
+```
+
 - [ ] **Step 6: Run config + handler tests and build**
 
 Run: `go build ./... && go test ./config/ ./handlers/ -v`
@@ -1993,7 +2043,7 @@ Expected: PASS — Redis password loads; CacheControl still applies for `/test` 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add thumbla.go handlers/imagehandler.go config/config.go config/config_test.go
+git add thumbla.go handlers/imagehandler.go config/config.go config/config_test.go config-example.yml
 go build ./...
 git commit -m "fix: recover-before-logger; CacheControl base path; trusted-proxy config for rate limiter; redis password tag"
 ```
